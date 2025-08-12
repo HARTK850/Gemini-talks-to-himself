@@ -43,7 +43,11 @@ body {
     direction: rtl;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overflow-x: hidden; /* Prevent horizontal scroll when history panel is open */
+    transition: background-color 0.4s ease; /* Smooth transition for overlay */
+}
+
+body.history-open {
+    overflow: hidden;
 }
 
 #app {
@@ -51,6 +55,11 @@ body {
     margin: 0 auto;
     padding: 2.5rem 1.5rem;
     animation: fadeIn 0.8s ease-out;
+    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+body[dir="rtl"].history-open #app {
+    transform: translateX(-380px);
 }
 
 .hidden {
@@ -609,6 +618,12 @@ body[dir="rtl"] #history-panel {
     padding: 1rem;
 }
 
+.empty-history-message {
+    text-align: center;
+    padding: 2rem;
+    color: var(--muted-text-color);
+}
+
 .history-item {
     display: flex;
     gap: 1rem;
@@ -628,13 +643,13 @@ body[dir="rtl"] #history-panel {
 
 .history-item.favorite {
     background-color: #fff9e6;
-    border-left: 4px solid var(--favorite-color); /* RTL support */
 }
 body[dir="rtl"] .history-item.favorite {
-    border-left: none;
     border-right: 4px solid var(--favorite-color);
 }
-
+body:not([dir="rtl"]) .history-item.favorite {
+    border-left: 4px solid var(--favorite-color);
+}
 
 .history-item-main {
     flex-grow: 1;
@@ -679,6 +694,7 @@ body[dir="rtl"] .history-item.favorite {
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
 }
 .history-action-btn:hover {
     color: var(--text-color);
