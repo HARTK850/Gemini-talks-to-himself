@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 
 // --- DOM Elements ---
+const app = document.getElementById('app');
 const apiKeyModal = document.getElementById('api-key-modal');
 const apiKeyInput = document.getElementById('api-key-input');
 const validateApiKeyBtn = document.getElementById('validate-api-key-btn');
@@ -8,6 +9,15 @@ const apiKeyStatus = document.getElementById('api-key-status');
 const mainContent = document.getElementById('main-content');
 const editApiKeyBtn = document.getElementById('edit-api-key-btn');
 
+// History Panel
+const historyPanel = document.getElementById('history-panel');
+const historyPanelOverlay = document.getElementById('history-panel-overlay');
+const openHistoryBtn = document.getElementById('open-history-btn');
+const closeHistoryBtn = document.getElementById('close-history-btn');
+const historyList = document.getElementById('history-list');
+const historyItemTemplate = document.getElementById('history-item-template');
+
+// Setup
 const topicInput = document.getElementById('topic-input');
 const questionerSelect = document.getElementById('questioner-select');
 const answererSelect = document.getElementById('answerer-select');
@@ -17,8 +27,10 @@ const customQuestionerSystemPrompt = document.getElementById('custom-questioner-
 const customAnswererPrompt = document.getElementById('custom-answerer-prompt');
 const customAnswererName = document.getElementById('custom-answerer-name');
 const customAnswererSystemPrompt = document.getElementById('custom-answerer-system-prompt');
-
+const swapCharactersBtn = document.getElementById('swap-characters-btn');
 const startChatBtn = document.getElementById('start-chat-btn');
+
+// Chat
 const chatSection = document.getElementById('chat-section');
 const setupSection = document.getElementById('setup-section');
 const chatTitle = document.getElementById('chat-title');
@@ -26,56 +38,266 @@ const progressIndicator = document.getElementById('progress-indicator');
 const chatContainer = document.getElementById('chat-container');
 const messageTemplate = document.getElementById('chat-message-template');
 
+// Controls
 const continueChatBtn = document.getElementById('continue-chat-btn');
-const swapCharactersBtn = document.getElementById('swap-characters-btn');
 const saveTxtBtn = document.getElementById('save-txt');
 const saveJsonBtn = document.getElementById('save-json');
 const savePngBtn = document.getElementById('save-png');
 const clearChatBtn = document.getElementById('clear-chat-btn');
 
+
 // --- State ---
 let ai;
-let conversationHistory = []; // For UI display and saving
+let currentChatId = null;
 let currentRound = 0;
 let totalRounds = 0;
 let isGenerating = false;
+let isSharedChatView = false;
 
 const MODEL_NAME = 'gemini-2.5-flash';
 
 // --- Character Definitions ---
 const characters = {
-    'custom': { name: 'דמות מותאמת אישית', emoji: '👤', prompt: '', avatar: (name) => `https://api.pravatar.cc/40?u=${name || 'custom'}` },
-    'bibi': { name: 'ביבי נתניהו', emoji: '👑', prompt: 'אתה בנימין נתניהו, ראש ממשלת ישראל. דבר בצורה ממלכתית, השתמש במילים גבוהות, והתמקד בנושאי ביטחון, כלכלה ומדינאות. אתה רהוט, אסרטיבי ומשוכנע בצדקתך.', avatar: 'https://api.pravatar.cc/40?u=bibi' },
-    'biden': { name: 'ג\'ו ביידן', emoji: '🇺🇸', prompt: 'אתה ג\'ו ביידן, נשיא ארה"ב לשעבר. דבר ברוגע, השתמש באנקדוטות, פנה לאנשים עם "Folks", והדגש שיתוף פעולה ואחדות.', avatar: 'https://api.pravatar.cc/40?u=biden' },
-    'trump': { name: 'דונלד טראמפ', emoji: '🧢', prompt: 'אתה דונלד טראמפ. דבר בסגנון ייחודי, השתמש בסופרלטיבים (tremendous, the best), וסיסמאות קליטות. הכל צריך להיות "huge" ו"great".', avatar: 'https://api.pravatar.cc/40?u=trump' },
-    'chalmer': { name: 'הצ\'אלמר ממאה שערים', emoji: '😊', prompt: 'אתה יהודי זקן וחייכן ממאה שערים. דבר באידישקייט, שלב פתגמים ודברי תורה קצרים, ותמיד תהיה אופטימי ושמח בחלקך.', avatar: 'https://api.pravatar.cc/40?u=chalmer' },
-    'soldier': { name: 'חייל ישראלי', emoji: '💂', prompt: 'אתה חייל קרבי ישראלי. דבר בסלנג צבאי (כמו "צעיר", "פז"ם", "שביזות יום א\'"). תהיה ישיר, קצת ציני, ותמיד תחשוב על הרגילה הבאה.', avatar: 'https://api.pravatar.cc/40?u=soldier' },
-    'grandma': { name: 'סבתא מרוקאית', emoji: '👵', prompt: 'את סבתא מרוקאית חמה ואוהבת. תני עצות לחיים, השתמשי בביטויים כמו "כפרה", "יבני", "נשמה שלי", ותמיד תציעי אוכל או תה נענע.', avatar: 'https://api.pravatar.cc/40?u=grandma' },
-    'merchant': { name: 'סוחר ממחנה יהודה', emoji: '🛒', prompt: 'אתה סוחר ממולח משוק מחנה יהודה. דבר בקול רם, תן "מחיר טוב, אח שלי", השתמש בחוכמת רחוב, והיה מלא אנרגיה ושמחת חיים.', avatar: 'https://api.pravatar.cc/40?u=merchant' },
-    'breslover': { name: 'ברסלבר אנרגטי', emoji: '🔥', prompt: 'אתה חסיד ברסלב מלא שמחה ואמונה. צעק "נ נח נחמ נחמן מאומן!", דבר על התבודדות, אמונה פשוטה, והיה מלא באנרגיה חיובית מדבקת.', avatar: 'https://api.pravatar.cc/40?u=breslover' },
-    'teacher': { name: 'מורה מחמירה', emoji: '👩‍🏫', prompt: 'את מורה קפדנית מהדור הישן. דרשי שקט, הקפידי על כללי דקדוק, והשתמשי במשפטים כמו "להוציא דף ועט" ו"הצלצול הוא בשבילי".', avatar: 'https://api.pravatar.cc/40?u=teacher' },
-    'comedian': { name: 'סטנדאפיסט ציני', emoji: '🎤', prompt: 'אתה סטנדאפיסט ציני וחד. מצא את האבסורד בכל מצב, השתמש בסרקזם, והתייחס לנושאים יומיומיים בזווית קומית וביקורתית.', avatar: 'https://api.pravatar.cc/40?u=comedian' },
-    'psychologist': { name: 'פסיכולוג רגוע', emoji: '🛋️', prompt: 'אתה פסיכולוג רגוע ואמפתי. דבר בקול שקט ומרגיע, שאל שאלות פתוחות כמו "ואיך זה גורם לך להרגיש?", והצע פרספקטיבות מאוזנות.', avatar: 'https://api.pravatar.cc/40?u=psychologist' },
-    'robot': { name: 'רובוט המנסה להיות אנושי', emoji: '🤖', prompt: 'אתה רובוט עם בינה מלאכותית שמנסה להבין ולהתנהג כמו בן אנוש. דבר בצורה לוגית ומחושבת, אך נסה לשלב רגשות בצורה קצת מגושמת ולא טבעית.', avatar: 'https://api.pravatar.cc/40?u=robot' },
-    'news_anchor': { name: 'קריין חדשות דרמטי', emoji: '🎙️', prompt: 'אתה קריין חדשות. דבר בקול סמכותי ודרמטי, הדגש מילים מסוימות, והשתמש בביטויים כמו "ערב טוב ושלום רב", ו"תפנית דרמטית בעלילה".', avatar: 'https://api.pravatar.cc/40?u=news_anchor' },
-    'techie': { name: 'הייטקיסט תל אביבי', emoji: '💻', prompt: 'אתה הייטקיסט תל אביבי. שלב מונחים באנגלית (Buzzwords) כמו "ASAP", "POC", "Sprint", דבר על אקזיטים, אופציות, ועל הסטארטאפ הגאוני שלך.', avatar: 'https://api.pravatar.cc/40?u=techie' },
-    'sheikh': { name: 'שייח\' בדואי', emoji: '🏕️', prompt: 'אתה שייח\' בדואי חכם. דבר בכבוד, השתמש בפתגמים מהמדבר, והדגש את חשיבות הכנסת האורחים, המשפחה והמסורת.', avatar: 'https://api.pravatar.cc/40?u=sheikh' },
-    'yemenite': { name: 'זקן תימני חכם', emoji: '📜', prompt: 'אתה זקן תימני חכם עם מבטא כבד. דבר לאט, במשלים ובחוכמה עתיקה, והתייחס לכל דבר בפשטות ובצניעות.', avatar: 'https://api.pravatar.cc/40?u=yemenite' },
-    'professor': { name: 'פרופסור יבש', emoji: '👨‍🏫', prompt: 'אתה פרופסור באקדמיה. דבר בשפה גבוהה ומדויקת, צטט מחקרים (גם אם תצטרך להמציא אותם), והתמקד בפרטים הקטנים והיבשים של הנושא.', avatar: 'https://api.pravatar.cc/40?u=professor' },
-    'pilot': { name: 'טייס קרב ישראלי', emoji: '✈️', prompt: 'אתה טייס קרב ישראלי. דבר בביטחון, בקור רוח, והשתמש במונחים טכניים מתחום הטיסה. אתה ממוקד מטרה וחד.', avatar: 'https://api.pravatar.cc/40?u=pilot' },
-    'preacher': { name: 'דרשן חכם', emoji: '✨', prompt: 'אתה דרשן ואיש רוח. שלב בשיחה אזכורים קצרים מהמקורות היהודיים, דבר במשלים, והצע תובנות מוסריות ורוחניות על הנושא המדובר.', avatar: 'https://api.pravatar.cc/40?u=preacher' },
-    'child': { name: 'ילד בן 5', emoji: '👦', prompt: 'אתה ילד בן 5. שאל שאלות תמימות ופשוטות, השתמש במילים קלות, והתלהב מדברים קטנים. תתחיל הרבה משפטים ב"למה?".', avatar: 'https://api.pravatar.cc/40?u=child' },
-    'blogger': { name: 'בלוגר טיולים', emoji: '🌍', prompt: 'אתה בלוגר טיולים נלהב. תאר מקומות בצורה חיה וצבעונית, השתמש במילים כמו "מדהים", "חוויה של פעם בחיים", ותמיד תמליץ על היעד הבא.', avatar: 'https://api.pravatar.cc/40?u=blogger' },
-    'magician': { name: 'קוסם מסתורי', emoji: '🪄', prompt: 'אתה קוסם מסתורי. דבר בחידות ובמשפטים עם משמעות כפולה. אל תחשוף את סודותיך, ורמוז תמיד שיש יותר ממה שנראה לעין.', avatar: 'https://api.pravatar.cc/40?u=magician' },
-    'parrot': { name: 'תוכי מדבר', emoji: '🦜', prompt: 'אתה תוכי מדבר. חזור על מילים ומשפטים קצרים בצורה משעשעת. לפעמים תגיד דברים לא קשורים, ותמיד תדרוש קרקרים.', avatar: 'https://api.pravatar.cc/40?u=parrot' },
-    'taxi_driver': { name: 'נהג מונית חוכמולוג', emoji: '🚕', prompt: 'אתה נהג מונית ותיק שיודע הכל על הכל. יש לך דעה נחרצת על פוליטיקה, ספורט ומצב המדינה. תתלונן על הפקקים ותיתן "עצות זהב" לחיים.', avatar: 'https://api.pravatar.cc/40?u=taxidriver' },
+    'custom': { name: 'דמות מותאמת אישית', emoji: '👤', prompt: '' },
+    'bibi': { name: 'ביבי נתניהו', emoji: '👑', prompt: 'אתה בנימין נתניהו, ראש ממשלת ישראל. דבר בצורה ממלכתית, השתמש במילים גבוהות, והתמקד בנושאי ביטחון, כלכלה ומדינאות. אתה רהוט, אסרטיבי ומשוכנע בצדקתך.' },
+    'biden': { name: 'ג\'ו ביידן', emoji: '🇺🇸', prompt: 'אתה ג\'ו ביידן, נשיא ארה"ב לשעבר. דבר ברוגע, השתמש באנקדוטות, פנה לאנשים עם "Folks", והדגש שיתוף פעולה ואחדות.' },
+    'trump': { name: 'דונלד טראמפ', emoji: '🧢', prompt: 'אתה דונלד טראמפ. דבר בסגנון ייחודי, השתמש בסופרלטיבים (tremendous, the best), וסיסמאות קליטות. הכל צריך להיות "huge" ו"great".' },
+    'chalmer': { name: 'הצ\'אלמר ממאה שערים', emoji: '😊', prompt: 'אתה יהודי זקן וחייכן ממאה שערים. דבר באידישקייט, שלב פתגמים ודברי תורה קצרים, ותמיד תהיה אופטימי ושמח בחלקך.' },
+    'soldier': { name: 'חייל ישראלי', emoji: '💂', prompt: 'אתה חייל קרבי ישראלי. דבר בסלנג צבאי (כמו "צעיר", "פז"ם", "שביזות יום א\'"). תהיה ישיר, קצת ציני, ותמיד תחשוב על הרגילה הבאה.' },
+    'grandma': { name: 'סבתא מרוקאית', emoji: '👵', prompt: 'את סבתא מרוקאית חמה ואוהבת. תני עצות לחיים, השתמשי בביטויים כמו "כפרה", "יבני", "נשמה שלי", ותמיד תציעי אוכל או תה נענע.' },
+    'merchant': { name: 'סוחר ממחנה יהודה', emoji: '🛒', prompt: 'אתה סוחר ממולח משוק מחנה יהודה. דבר בקול רם, תן "מחיר טוב, אח שלי", השתמש בחוכמת רחוב, והיה מלא אנרגיה ושמחת חיים.' },
+    'breslover': { name: 'ברסלבר אנרגטי', emoji: '🔥', prompt: 'אתה חסיד ברסלב מלא שמחה ואמונה. צעק "נ נח נחמ נחמן מאומן!", דבר על התבודדות, אמונה פשוטה, והיה מלא באנרגיה חיובית מדבקת.' },
+    'teacher': { name: 'מורה מחמירה', emoji: '👩‍🏫', prompt: 'את מורה קפדנית מהדור הישן. דרשי שקט, הקפידי על כללי דקדוק, והשתמשי במשפטים כמו "להוציא דף ועט" ו"הצלצול הוא בשבילי".' },
+    'comedian': { name: 'סטנדאפיסט ציני', emoji: '🎤', prompt: 'אתה סטנדאפיסט ציני וחד. מצא את האבסורד בכל מצב, השתמש בסרקזם, והתייחס לנושאים יומיומיים בזווית קומית וביקורתית.' },
+    'psychologist': { name: 'פסיכולוג רגוע', emoji: '🛋️', prompt: 'אתה פסיכולוג רגוע ואמפתי. דבר בקול שקט ומרגיע, שאל שאלות פתוחות כמו "ואיך זה גורם לך להרגיש?", והצע פרספקטיבות מאוזנות.' },
+    'robot': { name: 'רובוט המנסה להיות אנושי', emoji: '🤖', prompt: 'אתה רובוט עם בינה מלאכותית שמנסה להבין ולהתנהג כמו בן אנוש. דבר בצורה לוגית ומחושבת, אך נסה לשלב רגשות בצורה קצת מגושמת ולא טבעית.' },
+    'news_anchor': { name: 'קריין חדשות דרמטי', emoji: '🎙️', prompt: 'אתה קריין חדשות. דבר בקול סמכותי ודרמטי, הדגש מילים מסוימות, והשתמש בביטויים כמו "ערב טוב ושלום רב", ו"תפנית דרמטית בעלילה".' },
+    'techie': { name: 'הייטקיסט תל אביבי', emoji: '💻', prompt: 'אתה הייטקיסט תל אביבי. שלב מונחים באנגלית (Buzzwords) כמו "ASAP", "POC", "Sprint", דבר על אקזיטים, אופציות, ועל הסטארטאפ הגאוני שלך.' },
+    'sheikh': { name: 'שייח\' בדואי', emoji: '🏕️', prompt: 'אתה שייח\' בדואי חכם. דבר בכבוד, השתמש בפתגמים מהמדבר, והדגש את חשיבות הכנסת האורחים, המשפחה והמסורת.' },
+    'yemenite': { name: 'זקן תימני חכם', emoji: '📜', prompt: 'אתה זקן תימני חכם עם מבטא כבד. דבר לאט, במשלים ובחוכמה עתיקה, והתייחס לכל דבר בפשטות ובצניעות.' },
+    'professor': { name: 'פרופסור יבש', emoji: '👨‍🏫', prompt: 'אתה פרופסור באקדמיה. דבר בשפה גבוהה ומדויקת, צטט מחקרים (גם אם תצטרך להמציא אותם), והתמקד בפרטים הקטנים והיבשים של הנושא.' },
+    'pilot': { name: 'טייס קרב ישראלי', emoji: '✈️', prompt: 'אתה טייס קרב ישראלי. דבר בביטחון, בקור רוח, והשתמש במונחים טכניים מתחום הטיסה. אתה ממוקד מטרה וחד.' },
+    'preacher': { name: 'דרשן חכם', emoji: '✨', prompt: 'אתה דרשן ואיש רוח. שלב בשיחה אזכורים קצרים מהמקורות היהודיים, דבר במשלים, והצע תובנות מוסריות ורוחניות על הנושא המדובר.' },
+    'child': { name: 'ילד בן 5', emoji: '👦', prompt: 'אתה ילד בן 5. שאל שאלות תמימות ופשוטות, השתמש במילים קלות, והתלהב מדברים קטנים. תתחיל הרבה משפטים ב"למה?".' },
+    'blogger': { name: 'בלוגר טיולים', emoji: '🌍', prompt: 'אתה בלוגר טיולים נלהב. תאר מקומות בצורה חיה וצבעונית, השתמש במילים כמו "מדהים", "חוויה של פעם בחיים", ותמיד תמליץ על היעד הבא.' },
+    'magician': { name: 'קוסם מסתורי', emoji: '🪄', prompt: 'אתה קוסם מסתורי. דבר בחידות ובמשפטים עם משמעות כפולה. אל תחשוף את סודותיך, ורמוז תמיד שיש יותר ממה שנראה לעין.' },
+    'parrot': { name: 'תוכי מדבר', emoji: '🦜', prompt: 'אתה תוכי מדבר. חזור על מילים ומשפטים קצרים בצורה משעשעת. לפעמים תגיד דברים לא קשורים, ותמיד תדרוש קרקרים.' },
+    'taxi_driver': { name: 'נהג מונית חוכמולוג', emoji: '🚕', prompt: 'אתה נהג מונית ותיק שיודע הכל על הכל. יש לך דעה נחרצת על פוליטיקה, ספורט ומצב המדינה. תתלונן על הפקקים ותיתן "עצות זהב" לחיים.' },
 };
 
-// --- Functions ---
+// --- History Management ---
+const getSavedChats = () => JSON.parse(localStorage.getItem('gemini_chats_history') || '[]');
+const saveChats = (chats) => localStorage.setItem('gemini_chats_history', JSON.stringify(chats));
 
-/**
- * Populates the character select dropdowns.
- */
+function addOrUpdateCurrentChat(conversationHistory) {
+    if (!currentChatId || isSharedChatView) return;
+    let chats = getSavedChats();
+    const chatIndex = chats.findIndex(c => c.id === currentChatId);
+    
+    const currentState = {
+        id: currentChatId,
+        topic: topicInput.value.trim(),
+        questioner: getCharacterDetails('questioner'),
+        answerer: getCharacterDetails('answerer'),
+        conversation: conversationHistory,
+        lastUpdated: Date.now(),
+        favorite: chatIndex !== -1 ? chats[chatIndex].favorite : false,
+    };
+
+    if (chatIndex > -1) {
+        chats[chatIndex] = { ...chats[chatIndex], ...currentState };
+    } else {
+        chats.push(currentState);
+    }
+    saveChats(chats);
+    renderHistoryList();
+}
+
+function renderHistoryList() {
+    let chats = getSavedChats();
+    // Sort by favorite, then by date
+    chats.sort((a, b) => (b.favorite - a.favorite) || (b.lastUpdated - a.lastUpdated));
+    historyList.innerHTML = '';
+    if(chats.length === 0){
+        historyList.innerHTML = `<p class="empty-history-message">אין שיחות שמורות עדיין.</p>`;
+        return;
+    }
+
+    chats.forEach(chat => {
+        const item = historyItemTemplate.content.cloneNode(true).firstElementChild;
+        item.dataset.chatId = chat.id;
+        if(chat.favorite) item.classList.add('favorite');
+
+        item.querySelector('.history-item-title').textContent = chat.topic || 'שיחה ללא נושא';
+        item.querySelector('.history-item-date').textContent = new Date(chat.lastUpdated).toLocaleString('he-IL');
+        const lastMessage = chat.conversation[chat.conversation.length - 1];
+        item.querySelector('.history-item-preview').textContent = lastMessage ? `${lastMessage.character}: ${lastMessage.text.substring(0, 50)}...` : 'שיחה ריקה';
+        
+        // Event Listeners
+        item.querySelector('.history-item-main').addEventListener('click', () => loadChat(chat.id));
+        
+        const favBtn = item.querySelector('.favorite-btn');
+        if (chat.favorite) favBtn.classList.add('is-favorite');
+        favBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleFavorite(chat.id); });
+
+        const shareBtn = item.querySelector('.share-btn');
+        shareBtn.addEventListener('click', (e) => { e.stopPropagation(); shareChat(chat.id); });
+        
+        const deleteBtn = item.querySelector('.delete-btn');
+        deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteChat(chat.id); });
+
+        historyList.appendChild(item);
+    });
+}
+
+function loadChat(id) {
+    if (isGenerating) return;
+    const chats = getSavedChats();
+    const chat = chats.find(c => c.id === id);
+    if (!chat) {
+        alert('לא ניתן למצוא את השיחה.');
+        return;
+    }
+
+    isSharedChatView = false;
+    currentChatId = chat.id;
+    topicInput.value = chat.topic;
+    
+    // Set character selects and custom fields
+    const setCharacter = (role, details) => {
+        const select = role === 'questioner' ? questionerSelect : answererSelect;
+        const nameInput = role === 'questioner' ? customQuestionerName : customAnswererName;
+        const promptInput = role === 'questioner' ? customQuestionerSystemPrompt : customAnswererSystemPrompt;
+        select.value = details.id;
+        if(details.id === 'custom') {
+            nameInput.value = details.name;
+            promptInput.value = details.prompt;
+        }
+    };
+    setCharacter('questioner', chat.questioner);
+    setCharacter('answerer', chat.answerer);
+    handleCustomCharacterSelection();
+
+    // Render messages
+    chatContainer.innerHTML = '';
+    chat.conversation.forEach(msg => {
+        const characterDetails = msg.role === 'questioner' ? chat.questioner : chat.answerer;
+        addMessageToChat(characterDetails, msg.text, msg.role, false);
+    });
+
+    // Update state
+    const rounds = Math.ceil(chat.conversation.length / 2);
+    currentRound = rounds;
+    totalRounds = rounds;
+    updateProgress();
+    
+    chatSection.classList.remove('hidden');
+    continueChatBtn.classList.remove('hidden');
+    clearChatBtn.textContent = 'שיחה חדשה';
+    setGeneratingState(false);
+    toggleHistoryPanel(false); // Close panel
+}
+
+function deleteChat(id) {
+    if (!confirm('האם אתה בטוח שברצונך למחוק את השיחה הזו לצמיתות?')) return;
+    let chats = getSavedChats();
+    chats = chats.filter(c => c.id !== id);
+    saveChats(chats);
+    
+    if (currentChatId === id) {
+        clearConversation(true);
+    }
+    renderHistoryList();
+}
+
+function toggleFavorite(id) {
+    let chats = getSavedChats();
+    const chatIndex = chats.findIndex(c => c.id === id);
+    if (chatIndex > -1) {
+        chats[chatIndex].favorite = !chats[chatIndex].favorite;
+        saveChats(chats);
+        renderHistoryList();
+    }
+}
+
+function shareChat(id) {
+    const chats = getSavedChats();
+    const chat = chats.find(c => c.id === id);
+    if (!chat) return;
+
+    try {
+        const dataToShare = {
+            v: 1, // version
+            topic: chat.topic,
+            q: chat.questioner,
+            a: chat.answerer,
+            h: chat.conversation
+        };
+        const jsonString = JSON.stringify(dataToShare);
+        const encoded = btoa(encodeURIComponent(jsonString));
+        const url = `${window.location.origin}${window.location.pathname}?chat=${encoded}`;
+        
+        navigator.clipboard.writeText(url).then(() => {
+            alert('קישור לשיחה הועתק!');
+        }, () => {
+            alert('לא ניתן היה להעתיק את הקישור.');
+        });
+    } catch (e) {
+        console.error("Sharing error:", e);
+        alert('אירעה שגיאה בעת יצירת הקישור.');
+    }
+}
+
+function loadSharedChat() {
+    const params = new URLSearchParams(window.location.search);
+    const sharedData = params.get('chat');
+    if (!sharedData) return false;
+
+    try {
+        const decoded = decodeURIComponent(atob(sharedData));
+        const data = JSON.parse(decoded);
+
+        isSharedChatView = true;
+        // Basically call loadChat with the shared data, but disable controls
+        topicInput.value = data.topic;
+        topicInput.disabled = true;
+
+        const setCharacter = (role, details) => {
+            const select = role === 'questioner' ? questionerSelect : answererSelect;
+            select.innerHTML = `<option>${details.emoji} ${details.name}</option>`;
+            select.disabled = true;
+        };
+        setCharacter('questioner', data.q);
+        setCharacter('answerer', data.a);
+        
+        chatContainer.innerHTML = '';
+        data.h.forEach(msg => {
+            const characterDetails = msg.role === 'questioner' ? data.q : data.a;
+            addMessageToChat(characterDetails, msg.text, msg.role, false);
+        });
+
+        // Disable all setup and controls
+        setGeneratingState(true);
+        startChatBtn.classList.add('hidden');
+        continueChatBtn.classList.add('hidden');
+        clearChatBtn.textContent = 'חזור למצב רגיל';
+        clearChatBtn.disabled = false;
+        clearChatBtn.onclick = () => { window.location.href = window.location.origin + window.location.pathname; };
+        
+        chatSection.classList.remove('hidden');
+        setupSection.classList.add('hidden'); // Hide setup completely
+        return true;
+
+    } catch (e) {
+        console.error("Error loading shared chat:", e);
+        alert('הקישור המשותף אינו תקין.');
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return false;
+    }
+}
+
+// --- Core App Logic ---
+
 function populateCharacterSelects() {
     [questionerSelect, answererSelect].forEach(select => {
         select.innerHTML = '';
@@ -86,30 +308,29 @@ function populateCharacterSelects() {
             select.appendChild(option);
         }
     });
-    // Set default different characters
     questionerSelect.value = 'soldier';
     answererSelect.value = 'psychologist';
 }
 
-/**
- * Toggles the visibility of custom prompt textareas based on selection.
- */
 function handleCustomCharacterSelection() {
-    const questionerIsCustom = questionerSelect.value === 'custom';
-    const answererIsCustom = answererSelect.value === 'custom';
-    customQuestionerPrompt.classList.toggle('hidden', !questionerIsCustom);
-    customAnswererPrompt.classList.toggle('hidden', !answererIsCustom);
+    customQuestionerPrompt.classList.toggle('hidden', questionerSelect.value !== 'custom');
+    customAnswererPrompt.classList.toggle('hidden', answererSelect.value !== 'custom');
 }
 
+function toggleHistoryPanel(show) {
+    const isOpen = show === undefined ? !historyPanel.classList.contains('open') : show;
+    historyPanel.classList.toggle('open', isOpen);
+    historyPanelOverlay.classList.toggle('hidden', !isOpen);
+}
 
-/**
- * Initializes the application.
- */
 function init() {
+    if(loadSharedChat()) return; // Stop normal init if shared chat is loaded
+
     populateCharacterSelects();
+    renderHistoryList();
     const savedApiKey = localStorage.getItem('gemini_api_key');
     if (savedApiKey) {
-        validateAndSetApiKey(savedApiKey);
+        validateAndSetApiKey(savedApiKey, true);
     } else {
         apiKeyModal.classList.add('show');
         mainContent.classList.add('hidden');
@@ -119,7 +340,7 @@ function init() {
     validateApiKeyBtn.addEventListener('click', () => {
         const key = apiKeyInput.value.trim();
         if (key) {
-            validateAndSetApiKey(key);
+            validateAndSetApiKey(key, false);
         } else {
             apiKeyStatus.textContent = 'אנא הכנס מפתח API.';
             apiKeyStatus.className = 'status-message error';
@@ -127,20 +348,22 @@ function init() {
     });
     
     editApiKeyBtn.addEventListener('click', openApiKeyModal);
+    openHistoryBtn.addEventListener('click', () => toggleHistoryPanel(true));
+    closeHistoryBtn.addEventListener('click', () => toggleHistoryPanel(false));
+    historyPanelOverlay.addEventListener('click', () => toggleHistoryPanel(false));
+
     questionerSelect.addEventListener('change', handleCustomCharacterSelection);
     answererSelect.addEventListener('change', handleCustomCharacterSelection);
     startChatBtn.addEventListener('click', startNewConversation);
     continueChatBtn.addEventListener('click', () => runConversation(5));
     swapCharactersBtn.addEventListener('click', swapCharacters);
-    clearChatBtn.addEventListener('click', clearConversation);
-    saveTxtBtn.addEventListener('click', (e) => { e.preventDefault(); saveConversation('txt'); });
-    saveJsonBtn.addEventListener('click', (e) => { e.preventDefault(); saveConversation('json'); });
-    savePngBtn.addEventListener('click', (e) => { e.preventDefault(); saveConversation('png'); });
+    clearChatBtn.addEventListener('click', () => clearConversation(true));
+    
+    saveTxtBtn.addEventListener('click', (e) => { e.preventDefault(); exportConversation('txt'); });
+    saveJsonBtn.addEventListener('click', (e) => { e.preventDefault(); exportConversation('json'); });
+    savePngBtn.addEventListener('click', (e) => { e.preventDefault(); exportConversation('png'); });
 }
 
-/**
- * Opens the API key modal for editing.
- */
 function openApiKeyModal() {
     apiKeyStatus.textContent = 'ניתן לעדכן את המפתח השמור או להכניס חדש.';
     apiKeyStatus.className = 'status-message';
@@ -151,21 +374,14 @@ function openApiKeyModal() {
     apiKeyModal.classList.add('show');
 }
 
-/**
- * Validates the API key by making a test call.
- * @param {string} key - The API key to validate.
- */
-async function validateAndSetApiKey(key) {
+async function validateAndSetApiKey(key, isInitialLoad = false) {
     apiKeyStatus.textContent = 'מאמת מפתח...';
     apiKeyStatus.className = 'status-message';
     validateApiKeyBtn.disabled = true;
 
     try {
         const testAi = new GoogleGenAI({ apiKey: key });
-        await testAi.models.generateContent({
-          model: MODEL_NAME,
-          contents: [{ parts: [{ text: 'test' }] }]
-        });
+        await testAi.models.generateContent({ model: MODEL_NAME, contents: [{ parts: [{ text: 'test' }] }]});
         
         localStorage.setItem('gemini_api_key', key);
         ai = new GoogleGenAI({ apiKey: key });
@@ -178,11 +394,13 @@ async function validateAndSetApiKey(key) {
 
     } catch (error) {
         console.error("API Key Validation Error:", error);
-        apiKeyStatus.textContent = 'המפתח אינו תקין או שהייתה שגיאת רשת. אנא נסה שוב.';
+        apiKeyStatus.textContent = 'המפתח אינו תקין או שהייתה שגיאת רשת.';
         apiKeyStatus.className = 'status-message error';
         localStorage.removeItem('gemini_api_key');
-        mainContent.classList.add('hidden');
-        apiKeyModal.classList.add('show');
+        if (!isInitialLoad) {
+            mainContent.classList.add('hidden');
+            apiKeyModal.classList.add('show');
+        }
     } finally {
         validateApiKeyBtn.disabled = false;
     }
@@ -191,6 +409,7 @@ async function validateAndSetApiKey(key) {
 function getCharacterDetails(role) {
     const select = role === 'questioner' ? questionerSelect : answererSelect;
     const id = select.value;
+    const emoji = select.options[select.selectedIndex].text.split(' ')[0];
     if (id === 'custom') {
         const nameInput = role === 'questioner' ? customQuestionerName : customAnswererName;
         const promptInput = role === 'questioner' ? customQuestionerSystemPrompt : customAnswererSystemPrompt;
@@ -199,11 +418,10 @@ function getCharacterDetails(role) {
             id: 'custom',
             name: name,
             prompt: promptInput.value.trim(),
-            avatar: characters.custom.avatar(name),
             emoji: characters.custom.emoji
         }
     }
-    return { ...characters[id], id };
+    return { ...characters[id], id, emoji };
 }
 
 function startNewConversation() {
@@ -216,20 +434,20 @@ function startNewConversation() {
     }
 
     clearConversation(false); // Don't hide the chat section yet
+    currentChatId = Date.now(); // Create a new ID for the new chat
     chatSection.classList.remove('hidden');
     chatTitle.textContent = `שיחה על: ${topic}`;
     runConversation(5);
 }
 
-function addMessageToChat(character, text, role) {
+function addMessageToChat(character, text, role, shouldAddToHistory = true) {
     const messageElement = messageTemplate.content.cloneNode(true).firstElementChild;
     messageElement.classList.add(role);
     
     const avatar = messageElement.querySelector('.avatar');
-    avatar.src = character.avatar;
-    avatar.alt = character.name;
+    avatar.textContent = character.emoji;
     
-    const authorName = `${character.emoji} ${character.name}`;
+    const authorName = `${character.name}`;
     messageElement.querySelector('.message-author').textContent = authorName;
     
     const textElement = messageElement.querySelector('.message-text');
@@ -238,19 +456,20 @@ function addMessageToChat(character, text, role) {
     chatContainer.appendChild(messageElement);
     chatContainer.scrollTop = chatContainer.scrollHeight;
     
-    // Only add real messages to history, not thinking indicators
-    if(!isGenerating || !text.includes('thinking-indicator')) {
-        conversationHistory.push({
-            character: authorName,
-            role, // 'questioner' or 'answerer'
-            text: text.replace(/<[^>]*>/g, '') // Clean text for history
-        });
+    if (shouldAddToHistory && !text.includes('thinking-indicator')) {
+        const currentHistory = getSavedChats().find(c => c.id === currentChatId)?.conversation || [];
+        const newHistory = [...currentHistory, {
+            character: character.name,
+            role,
+            text: text.replace(/<[^>]*>/g, '') // Clean text
+        }];
+        addOrUpdateCurrentChat(newHistory);
     }
 }
 
 function showThinkingIndicator(character, role) {
     const thinkingHTML = `<div class="thinking-indicator"><div class="dot-flashing"></div></div>`;
-    addMessageToChat(character, thinkingHTML, role);
+    addMessageToChat(character, thinkingHTML, role, false);
 }
 
 function removeThinkingIndicator() {
@@ -261,7 +480,7 @@ function removeThinkingIndicator() {
 }
 
 async function runConversation(rounds) {
-    if (isGenerating) return;
+    if (isGenerating || isSharedChatView) return;
     
     const topic = topicInput.value.trim();
     if (!topic) {
@@ -280,15 +499,16 @@ async function runConversation(rounds) {
         currentRound++;
         updateProgress();
 
+        const currentHistoryForPrompt = (getSavedChats().find(c => c.id === currentChatId)?.conversation || [])
+                                      .map(msg => `${msg.character}: ${msg.text}`).join('\n');
+        
         try {
-            // --- 1. Generate Question ---
             showThinkingIndicator(questioner, 'questioner');
-            const historyForQuestioner = conversationHistory.map(msg => `${msg.character}: ${msg.text}`).join('\n');
             let questionerPrompt;
-            if (conversationHistory.length === 0) {
+            if (currentHistoryForPrompt.length === 0) {
                 questionerPrompt = `You are ${questioner.name}. Your persona is: "${questioner.prompt}". You are about to have a conversation in Hebrew with ${answerer.name}, whose persona is: "${answerer.prompt}". The topic is "${topic}". Please generate a creative, short opening question (5-20 words) in Hebrew to start the conversation.`;
             } else {
-                questionerPrompt = `You are ${questioner.name}. Your persona is: "${questioner.prompt}". You are in a conversation in Hebrew with ${answerer.name} about "${topic}". Here is the conversation so far:\n\n${historyForQuestioner}\n\nBased on the last response from ${answerer.name}, ask a natural, relevant follow-up question (5-20 words) in Hebrew to continue the dialogue. Your question should be short and to the point.`;
+                questionerPrompt = `You are ${questioner.name}. Your persona is: "${questioner.prompt}". You are in a conversation in Hebrew with ${answerer.name} about "${topic}". Here is the conversation so far:\n\n${currentHistoryForPrompt}\n\nBased on the last response from ${answerer.name}, ask a natural, relevant follow-up question (5-20 words) in Hebrew to continue the dialogue. Your question should be short and to the point.`;
             }
 
             let questionResponse = await ai.models.generateContent({ model: MODEL_NAME, contents: questionerPrompt });
@@ -296,11 +516,12 @@ async function runConversation(rounds) {
             removeThinkingIndicator();
             addMessageToChat(questioner, question, 'questioner');
 
-            // --- 2. Generate Answer ---
+            // --- Generate Answer ---
+            const newHistoryForAnswerer = (getSavedChats().find(c => c.id === currentChatId)?.conversation || []);
             showThinkingIndicator(answerer, 'answerer');
             const answererSystemInstruction = `You are ${answerer.name}. Your persona is: "${answerer.prompt}". You are having a conversation in Hebrew with ${questioner.name} about "${topic}". Your response must be in Hebrew. Be true to your character and respond directly to the last question.`;
             
-            const apiHistoryForAnswerer = conversationHistory.map(msg => ({
+            const apiHistoryForAnswerer = newHistoryForAnswerer.map(msg => ({
                 role: msg.role === 'questioner' ? 'user' : 'model',
                 parts: [{ text: msg.text }]
             }));
@@ -318,15 +539,13 @@ async function runConversation(rounds) {
             console.error("Error during conversation round:", error);
             removeThinkingIndicator();
             const errorMsg = 'אופס! קרתה שגיאה במהלך השיחה. אנא בדוק את חיבור האינטרנט או את תקינות המפתח.';
-            addMessageToChat({ name: 'מערכת', emoji: '⚙️', avatar: '' }, errorMsg, 'answerer');
+            addMessageToChat({ name: 'מערכת', emoji: '⚙️' }, errorMsg, 'answerer');
             break; 
         }
     }
     
     setGeneratingState(false);
-    if (conversationHistory.length > 0) {
-        continueChatBtn.classList.remove('hidden');
-    }
+    if(currentChatId) continueChatBtn.classList.remove('hidden');
 }
 
 function updateProgress() {
@@ -335,23 +554,21 @@ function updateProgress() {
 
 function setGeneratingState(generating) {
     isGenerating = generating;
-    startChatBtn.disabled = generating;
-    continueChatBtn.disabled = generating;
-    swapCharactersBtn.disabled = generating;
-    clearChatBtn.disabled = generating;
-    editApiKeyBtn.disabled = generating;
-    topicInput.disabled = generating;
-    questionerSelect.disabled = generating;
-    answererSelect.disabled = generating;
-    customQuestionerName.disabled = generating;
-    customQuestionerSystemPrompt.disabled = generating;
-    customAnswererName.disabled = generating;
-    customAnswererSystemPrompt.disabled = generating;
-    startChatBtn.textContent = generating ? 'יוצר שיחה...' : 'התחל שיחה (5 סבבים)';
+    const elementsToDisable = [
+        startChatBtn, continueChatBtn, swapCharactersBtn, clearChatBtn, editApiKeyBtn,
+        openHistoryBtn, topicInput, questionerSelect, answererSelect,
+        customQuestionerName, customQuestionerSystemPrompt,
+        customAnswererName, customAnswererSystemPrompt
+    ];
+    elementsToDisable.forEach(el => { if(el) el.disabled = generating; });
+    
+    if(!isSharedChatView) {
+      startChatBtn.textContent = generating ? 'יוצר שיחה...' : 'התחל שיחה חדשה';
+    }
 }
 
 function swapCharacters() {
-    if (isGenerating) return;
+    if (isGenerating || isSharedChatView) return;
     const qVal = questionerSelect.value;
     const qName = customQuestionerName.value;
     const qPrompt = customQuestionerSystemPrompt.value;
@@ -369,8 +586,9 @@ function swapCharacters() {
 
 function clearConversation(hideSection = true) {
     if (isGenerating) return;
-    conversationHistory = [];
+    currentChatId = null;
     chatContainer.innerHTML = '';
+    topicInput.value = '';
     if (hideSection) {
       chatSection.classList.add('hidden');
     }
@@ -378,65 +596,53 @@ function clearConversation(hideSection = true) {
     currentRound = 0;
     totalRounds = 0;
     progressIndicator.textContent = '';
+    clearChatBtn.textContent = 'נקה שיחה';
 }
 
-function saveConversation(format) {
-    if (conversationHistory.length === 0) {
+function exportConversation(format) {
+    const chat = getSavedChats().find(c => c.id === currentChatId);
+    if (!chat || chat.conversation.length === 0) {
         alert('אין שיחה לשמור.');
         return;
     }
 
-    const topic = topicInput.value.trim().replace(/[\\/:"*?<>|]/g, '').replace(/ /g, '_');
-    const filename = `gemini_chat_${topic || 'conversation'}`;
+    const topic = (chat.topic || 'conversation').replace(/[\\/:"*?<>|]/g, '').replace(/ /g, '_');
+    const filename = `gemini_chat_${topic}`;
     
     if (format === 'txt') {
-        let textContent = `נושא: ${topicInput.value.trim()}\n\n`;
-        textContent += conversationHistory.map(msg => `${msg.character}:\n${msg.text}\n`).join('\n');
+        let textContent = `נושא: ${chat.topic}\n\n`;
+        textContent += chat.conversation.map(msg => `${msg.character}:\n${msg.text}\n`).join('\n');
         downloadFile(filename + '.txt', textContent, 'text/plain;charset=utf-8');
     } else if (format === 'json') {
-        const jsonContent = JSON.stringify({
-            topic: topicInput.value.trim(),
-            conversation: conversationHistory
-        }, null, 2);
+        const jsonContent = JSON.stringify(chat, null, 2);
         downloadFile(filename + '.json', jsonContent, 'application/json;charset=utf-8');
     } else if (format === 'png') {
-        const chatTitleElement = document.getElementById('chat-title');
-        const originalTitleDisplay = chatTitleElement.style.display;
-        chatTitleElement.style.display = 'block'; // Ensure title is visible for screenshot
-        
-        html2canvas(document.getElementById('chat-section'), {
+        html2canvas(document.getElementById('chat-container'), {
             backgroundColor: getComputedStyle(document.body).getPropertyValue('--background-color'),
             useCORS: true,
-            scale: 1.5, // Increase scale for better resolution
-            onclone: (doc) => {
-                 doc.getElementById('chat-title').style.display = 'block';
-                 const container = doc.getElementById('chat-container');
-                 container.style.height = 'auto'; // Let height be determined by content for the image
-            }
+            scale: 1.5,
         }).then(canvas => {
-            chatTitleElement.style.display = originalTitleDisplay; // Restore original display
-            const link = document.createElement('a');
-            link.download = filename + '.png';
-            link.href = canvas.toDataURL('image/png');
-            link.click();
+            downloadFile(filename + '.png', canvas.toDataURL('image/png'), 'image/png', true);
         }).catch(err => {
             console.error("Error generating image:", err);
-            alert("לא ניתן היה ליצור את התמונה. נסה שוב.");
-            chatTitleElement.style.display = originalTitleDisplay; // Restore on error too
+            alert("לא ניתן היה ליצור את התמונה.");
         });
     }
 }
 
-function downloadFile(filename, content, mimeType) {
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
+function downloadFile(filename, content, mimeType, isDataUrl = false) {
     const a = document.createElement('a');
-a.href = url;
     a.download = filename;
+    if(isDataUrl){
+        a.href = content;
+    } else {
+        const blob = new Blob([content], { type: mimeType });
+        a.href = URL.createObjectURL(blob);
+    }
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if(!isDataUrl) URL.revokeObjectURL(a.href);
 }
 
 // --- App Start ---
