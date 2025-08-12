@@ -109,59 +109,59 @@ class GeminiChatApp {
         this.answererSelect.innerHTML = answererOptions;
     }
     
-    async validateApiKey() {
-        const apiKey = this.apiKeyInput.value.trim();
-        if (!apiKey) {
-            this.showApiStatus('נא הזן מפתח API', 'error');
-            return;
-        }
-        
-        this.validateApiBtn.disabled = true;
-        this.validateApiBtn.textContent = 'בודק...';
-        
-        try {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: 'hello'
-                        }]
-                    }]
-                })
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.candidates && data.candidates[0]) {
-                    this.apiKey = apiKey;
-                    this.isApiValid = true;
-                    localStorage.setItem('gemini_api_key', apiKey);
-                    this.showApiStatus('מפתח API תקין! ✅', 'success');
-                    setTimeout(() => {
-                        this.apiSetup.style.display = 'none';
-                        this.mainApp.style.display = 'block';
-                    }, 1500);
-                } else {
-                    throw new Error('תגובה לא תקינה מהשרת');
-                }
-            } else {
-                const errorData = await response.json();
-                const errorMessage = errorData.error?.message || 'מפתח API לא תקין';
-                throw new Error(errorMessage);
-            }
-        } catch (error) {
-            console.error('API Validation Error:', error);
-            this.showApiStatus(`שגיאה: ${error.message}`, 'error');
-            this.isApiValid = false;
-        } finally {
-            this.validateApiBtn.disabled = false;
-            this.validateApiBtn.textContent = 'בדוק מפתח';
-        }
+async validateApiKey() {
+    const apiKey = this.apiKeyInput.value.trim();
+    if (!apiKey) {
+        this.showApiStatus('נא הזן מפתח API', 'error');
+        return;
     }
+
+    this.validateApiBtn.disabled = true;
+    this.validateApiBtn.textContent = 'בודק...';
+
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: 'hello'
+                    }]
+                }]
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.candidates && data.candidates[0]) {
+                this.apiKey = apiKey;
+                this.isApiValid = true;
+                localStorage.setItem('gemini_api_key', apiKey);
+                this.showApiStatus('מפתח API תקין! ✅', 'success');
+                setTimeout(() => {
+                    this.apiSetup.style.display = 'none';
+                    this.mainApp.style.display = 'block';
+                }, 1500);
+            } else {
+                throw new Error('תגובה לא תקינה מהשרת');
+            }
+        } else {
+            const errorData = await response.json();
+            const errorMessage = errorData.error?.message || 'מפתח API לא תקין';
+            throw new Error(errorMessage);
+        }
+    } catch (error) {
+        console.error('API Validation Error:', error);
+        this.showApiStatus(`שגיאה: ${error.message}`, 'error');
+        this.isApiValid = false;
+    } finally {
+        this.validateApiBtn.disabled = false;
+        this.validateApiBtn.textContent = 'בדוק מפתח';
+    }
+}
     
     showApiStatus(message, type) {
         this.apiStatus.textContent = message;
@@ -344,43 +344,43 @@ ${contextPrompt}
         return await this.callGeminiAPI(prompt);
     }
     
-    async callGeminiAPI(prompt) {
-        try {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${this.apiKey}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: prompt
-                        }]
-                    }],
-                    generationConfig: {
-                        temperature: 0.8,
-                        maxOutputTokens: 200,
-                    }
-                })
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                const errorMessage = errorData.error?.message || 'שגיאה בקריאה ל-API';
-                throw new Error(errorMessage);
-            }
-            
-            const data = await response.json();
-            if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-                throw new Error('תגובה לא תקינה מהשרת');
-            }
-            
-            return data.candidates[0].content.parts[0].text.trim();
-            
-        } catch (error) {
-            throw error;
+async callGeminiAPI(prompt) {
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${this.apiKey}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: prompt
+                    }]
+                }],
+                generationConfig: {
+                    temperature: 0.8,
+                    maxOutputTokens: 200,
+                }
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            const errorMessage = errorData.error?.message || 'שגיאה בקריאה ל-API';
+            throw new Error(errorMessage);
         }
+        
+        const data = await response.json();
+        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+            throw new Error('תגובה לא תקינה מהשרת');
+        }
+        
+        return data.candidates[0].content.parts[0].text.trim();
+        
+    } catch (error) {
+        throw error;
     }
+}
     
     addMessageToChat(type, text) {
         const character = type === 'asker' ? this.askerCharacter : this.answererCharacter;
