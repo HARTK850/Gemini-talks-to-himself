@@ -1,100 +1,284 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ג'מיני מדבר עם עצמו</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@google/generative-ai"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>שיחת ג'מיני עם עצמו</title>
+<style>
+/* ===== עיצוב כללי ===== */
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  background: #f0f2f5;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+header {
+  background: #4a90e2;
+  color: white;
+  padding: 10px;
+  text-align: center;
+}
+#chat {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+.message {
+  display: flex;
+  margin-bottom: 10px;
+  align-items: flex-end;
+}
+.message img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-left: 10px;
+}
+.message .bubble {
+  padding: 10px;
+  border-radius: 10px;
+  max-width: 70%;
+}
+.asker .bubble {
+  background: #d1e7ff;
+}
+.answerer .bubble {
+  background: #e2ffd1;
+}
+.controls {
+  background: white;
+  padding: 10px;
+  border-top: 1px solid #ccc;
+}
+input, select, button, textarea {
+  margin: 5px 0;
+  padding: 8px;
+  font-size: 14px;
+  width: 100%;
+}
+.progress {
+  text-align: center;
+  margin: 5px 0;
+}
+@media (min-width: 768px) {
+  .flex-row {
+    display: flex;
+    gap: 10px;
+  }
+  select, input, textarea {
+    width: auto;
+    flex: 1;
+  }
+}
+</style>
 </head>
 <body>
-    <header class="app-header">
-        <h1 class="app-title">ג'מיני מדבר עם עצמו</h1>
-        <p class="app-subtitle">בחר דמויות ונושא, ותן להן לשוחח</p>
-    </header>
 
-    <main class="app-main">
-        <div class="api-key-container">
-            <input type="password" id="api-key-input" placeholder="הכנס מפתח API של Gemini">
-            <button id="save-api-key-btn">שמור</button>
-            <span id="api-key-status" class="status-indicator"></span>
-        </div>
-        <div id="api-key-valid-message" class="alert-message success hidden">
-            ✅ המפתח תקין!
-        </div>
-        <div id="api-key-invalid-message" class="alert-message error hidden">
-            ❌ המפתח אינו תקין. אנא נסה שוב.
-        </div>
-        <div id="api-key-missing-alert" class="alert-message warning hidden">
-            ⚠️ אנא הזן מפתח API כדי להתחיל.
-        </div>
+<header>
+  <h1>שיחת ג'מיני עם עצמו</h1>
+</header>
 
-        <div class="controls-container hidden" id="main-controls">
-            <div class="control-group">
-                <label for="topic-input">הקלד נושא לשיחה:</label>
-                <input type="text" id="topic-input" placeholder="לדוגמה: היסטוריה של המזרח התיכון">
-            </div>
-            
-            <div class="character-selection">
-                <div class="character-card" id="asker-card">
-                    <h3 class="card-title">שואל שאלות</h3>
-                    <div class="character-avatar-container">
-                        <span class="character-icon"></span>
-                    </div>
-                    <select id="asker-select"></select>
-                </div>
-                <div class="swap-btn-container">
-                    <button id="swap-characters-btn" class="icon-btn" title="החלף דמויות">🔄</button>
-                </div>
-                <div class="character-card" id="answerer-card">
-                    <h3 class="card-title">עונה תשובות</h3>
-                    <div class="character-avatar-container">
-                        <span class="character-icon"></span>
-                    </div>
-                    <select id="answerer-select"></select>
-                </div>
-            </div>
+<div id="chat"></div>
 
-            <div class="custom-character-container">
-                <button id="add-custom-character-btn" class="secondary-btn">הוסף דמות מותאמת אישית</button>
-            </div>
+<div class="controls">
+  <label>מפתח API של Gemini:</label>
+  <input type="password" id="apiKey" placeholder="הדבק כאן את המפתח שלך">
+  <button id="saveKeyBtn">שמירה ובדיקת מפתח</button>
+  <div id="keyStatus" style="color:red;font-weight:bold;"></div>
 
-            <div id="custom-character-form" class="hidden">
-                <h4 class="form-title">הגדר דמות מותאמת אישית</h4>
-                <input type="text" id="custom-character-name" placeholder="שם הדמות">
-                <textarea id="custom-character-prompt" placeholder="הגדר פרומפט מערכת (לדוגמה: 'אתה בלש חכם וציני...')"></textarea>
-                <div class="form-actions">
-                    <button id="save-custom-character-btn" class="primary-btn">שמור</button>
-                    <button id="cancel-custom-character-btn" class="secondary-btn">ביטול</button>
-                </div>
-            </div>
+  <label>נושא השיחה:</label>
+  <input type="text" id="topic" placeholder="לדוגמה: כדורגל, היסטוריה...">
 
-            <div class="action-buttons">
-                <button id="start-conversation-btn" class="primary-btn">התחל שיחה</button>
-            </div>
-        </div>
+  <div class="flex-row">
+    <div>
+      <label>דמות שואלת:</label>
+      <select id="asker"></select>
+    </div>
+    <div>
+      <label>דמות עונה:</label>
+      <select id="answerer"></select>
+    </div>
+  </div>
 
-        <div class="conversation-container hidden" id="conversation-display">
-            <div class="conversation-header">
-                <div class="progress-indicator">
-                    <span id="current-round">0</span> מתוך <span id="total-rounds">5</span> סבבים
-                </div>
-                <div class="conversation-controls">
-                    <button id="clear-conversation-btn" class="secondary-btn">נקה שיחה</button>
-                    <button id="save-conversation-btn" class="secondary-btn">שמור שיחה</button>
-                </div>
-            </div>
-            <div id="chat-box" class="chat-box">
-                </div>
-            <div class="conversation-actions">
-                <button id="continue-conversation-btn" class="primary-btn">המשך שיחה (5 סבבים נוספים)</button>
-            </div>
-        </div>
-    </main>
+  <label>Prompt System לדמות שואלת:</label>
+  <textarea id="askerPrompt" rows="2"></textarea>
+  <label>Prompt System לדמות עונה:</label>
+  <textarea id="answererPrompt" rows="2"></textarea>
 
-    <script src="script.js"></script>
+  <div class="progress" id="progressText">0 מתוך 5</div>
+
+  <button id="startBtn">התחל שיחה (5 סבבים)</button>
+  <button id="continueBtn">המשך שיחה (5 סבבים נוספים)</button>
+  <button id="swapBtn">החלף דמויות</button>
+  <button id="clearBtn">נקה שיחה</button>
+  <button id="saveChatBtn">שמור שיחה</button>
+</div>
+
+<script>
+// ===== הגדרות דמויות =====
+const characters = [
+  { name: "ביבי – ראש ממשלת ישראל", avatar: "https://i.imgur.com/9A8YQ3K.png", prompt: "אתה ביבי נתניהו, ראש ממשלת ישראל, מדבר בעברית." },
+  { name: "ביידן – נשיא ארה\"ב לשעבר", avatar: "https://i.imgur.com/zZ4y3uA.png", prompt: "You are Joe Biden, speaking in Hebrew with American style." },
+  { name: "טראמפ – נשיא ארה\"ב", avatar: "https://i.imgur.com/g6C5PpJ.png", prompt: "You are Donald Trump, bold and confident, speaking Hebrew." },
+  { name: "הצ'אלמר – יהודי זקן וחייכן ממאה שערים", avatar: "https://i.imgur.com/JXlXqzB.png", prompt: "אתה יהודי זקן וחייכן ממאה שערים, עם הומור ירושלמי." },
+  { name: "חייל ישראלי – מדבר בסלנג צבאי", avatar: "https://i.imgur.com/D2c2uFn.png", prompt: "אתה חייל צה\"ל צעיר, מדבר בסלנג צבאי בעברית." },
+  { name: "סבתא מרוקאית – מלאה עצות", avatar: "https://i.imgur.com/NbSxkUd.png", prompt: "את סבתא מרוקאית חמה, מלאה עצות." },
+  { name: "סוחר ממחנה יהודה – חוכמת רחוב", avatar: "https://i.imgur.com/dWuGZ9P.png", prompt: "אתה סוחר בשוק מחנה יהודה, עם חוכמת רחוב." },
+  { name: "ברסלבר אנרגטי – מלא חיות", avatar: "https://i.imgur.com/F9jzTgJ.png", prompt: "אתה חסיד ברסלב נלהב ומלא שמחת חיים." },
+  { name: "מורה מחמירה", avatar: "https://i.imgur.com/rzJ6e2U.png", prompt: "את מורה מחמירה, עם דרישות גבוהות." },
+  { name: "סטנדאפיסט ציני", avatar: "https://i.imgur.com/p5fIkhM.png", prompt: "אתה סטנדאפיסט ציני עם הערות חדות." },
+  { name: "פסיכולוג רגוע", avatar: "https://i.imgur.com/nmHPv3p.png", prompt: "אתה פסיכולוג רגוע ומרגיע." },
+  { name: "רובוט שמנסה להיות אנושי", avatar: "https://i.imgur.com/v8x9Jz2.png", prompt: "אתה רובוט שמנסה להיות אנושי, עם מעט טעויות חמודות." },
+  { name: "קריין חדשות דרמטי", avatar: "https://i.imgur.com/B2q3a5s.png", prompt: "אתה קריין חדשות דרמטי ומלא פאתוס." },
+  { name: "הייטקיסט תל אביבי", avatar: "https://i.imgur.com/JVkaEMl.png", prompt: "אתה הייטקיסט תל אביבי, משתמש הרבה באנגלית." },
+  { name: "שייח' בדואי", avatar: "https://i.imgur.com/9eqrM1d.png", prompt: "אתה שייח' בדואי חכם, מדבר בעברית." },
+  { name: "זקן תימני חכם", avatar: "https://i.imgur.com/m3qO9b8.png", prompt: "אתה זקן תימני חכם, עם פתגמים." },
+  { name: "פרופסור יבש", avatar: "https://i.imgur.com/E0DmjXM.png", prompt: "אתה פרופסור יבש, מדבר בשפה אקדמית." },
+  { name: "טייס קרב ישראלי", avatar: "https://i.imgur.com/6E4e8z1.png", prompt: "אתה טייס קרב ישראלי, משתמש בסלנג של חיל האוויר." },
+  { name: "דרשן חכם עם אזכורים דתיים קצרים", avatar: "https://i.imgur.com/9NPrlDP.png", prompt: "אתה דרשן חכם, מוסיף אזכורים קצרים מהמקורות." },
+  { name: "ילד בן 5 – שואל תמים", avatar: "https://i.imgur.com/Y7PWXxM.png", prompt: "אתה ילד בן 5, שואל שאלות תמימות." },
+  { name: "בלוגר טיולים", avatar: "https://i.imgur.com/qm6c4lB.png", prompt: "אתה בלוגר טיולים, מתאר חוויות." },
+  { name: "קוסם מסתורי", avatar: "https://i.imgur.com/KkbiXy8.png", prompt: "אתה קוסם מסתורי עם רמיזות קסומות." },
+  { name: "תוכי מדבר", avatar: "https://i.imgur.com/5aqyZCj.png", prompt: "אתה תוכי מדבר, חוזר על דברים ומשלב הומור." },
+  { name: "נהג מונית חוכמולוג", avatar: "https://i.imgur.com/UBhDqY0.png", prompt: "אתה נהג מונית חוכמולוג, עם סיפורי חיים." },
+  { name: "מותאם אישית", avatar: "https://i.imgur.com/VjsVktH.png", prompt: "" }
+];
+
+// ===== מילוי רשימות דמויות =====
+const askerSelect = document.getElementById("asker");
+const answererSelect = document.getElementById("answerer");
+characters.forEach(c => {
+  const opt1 = document.createElement("option");
+  opt1.textContent = c.name;
+  askerSelect.appendChild(opt1);
+  const opt2 = document.createElement("option");
+  opt2.textContent = c.name;
+  answererSelect.appendChild(opt2);
+});
+askerSelect.selectedIndex = 0;
+answererSelect.selectedIndex = 1;
+
+// ===== שמירת מפתח ובדיקתו =====
+const apiKeyInput = document.getElementById("apiKey");
+const saveKeyBtn = document.getElementById("saveKeyBtn");
+const keyStatus = document.getElementById("keyStatus");
+
+if(localStorage.getItem("geminiApiKey")){
+  apiKeyInput.value = localStorage.getItem("geminiApiKey");
+}
+
+async function testApiKey(key) {
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${key}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: "אמור 'היי' בלבד." }] }]
+      })
+    });
+    if(!res.ok) return false;
+    const data = await res.json();
+    return data.candidates && data.candidates.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+saveKeyBtn.onclick = async () => {
+  const key = apiKeyInput.value.trim();
+  if(!key) { keyStatus.textContent = "נא להזין מפתח."; return; }
+  keyStatus.textContent = "בודק מפתח...";
+  const valid = await testApiKey(key);
+  if(valid){
+    localStorage.setItem("geminiApiKey", key);
+    keyStatus.style.color = "green";
+    keyStatus.textContent = "✓ המפתח תקין";
+  } else {
+    keyStatus.style.color = "red";
+    keyStatus.textContent = "✗ המפתח שגוי או חסום";
+  }
+};
+
+// ===== הפעלת שיחה =====
+let round = 0;
+let totalRounds = 5;
+const chatDiv = document.getElementById("chat");
+const progressText = document.getElementById("progressText");
+
+async function callGemini(prompt, key){
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${key}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ role: "user", parts: [{ text: prompt }] }]
+    })
+  });
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+}
+
+function addMessage(role, text, avatar){
+  const msgDiv = document.createElement("div");
+  msgDiv.className = `message ${role}`;
+  msgDiv.innerHTML = `<img src="${avatar}"><div class="bubble">${text}</div>`;
+  chatDiv.appendChild(msgDiv);
+  chatDiv.scrollTop = chatDiv.scrollHeight;
+}
+
+async function startConversation(){
+  const key = localStorage.getItem("geminiApiKey");
+  if(!key){ alert("נא לשמור מפתח תקין קודם."); return; }
+  round = 0;
+  chatDiv.innerHTML = "";
+  await runRounds(totalRounds, key);
+}
+
+async function continueConversation(){
+  const key = localStorage.getItem("geminiApiKey");
+  if(!key){ alert("נא לשמור מפתח תקין קודם."); return; }
+  await runRounds(totalRounds, key);
+}
+
+async function runRounds(count, key){
+  const topic = document.getElementById("topic").value.trim();
+  const askerName = askerSelect.value;
+  const answererName = answererSelect.value;
+  const askerPrompt = document.getElementById("askerPrompt").value || characters[askerSelect.selectedIndex].prompt;
+  const answererPrompt = document.getElementById("answererPrompt").value || characters[answererSelect.selectedIndex].prompt;
+  const askerAvatar = characters[askerSelect.selectedIndex].avatar;
+  const answererAvatar = characters[answererSelect.selectedIndex].avatar;
+
+  for(let i=0; i<count; i++){
+    round++;
+    progressText.textContent = `${round} מתוך ${count + (round-count)}`;
+    const question = await callGemini(`${askerPrompt}\nנושא השיחה: ${topic}\nצור שאלה אקראית בין 5 ל-20 מילים בלבד.`, key);
+    addMessage("asker", question, askerAvatar);
+    const answer = await callGemini(`${answererPrompt}\nהשאלה היא: ${question}`, key);
+    addMessage("answerer", answer, answererAvatar);
+  }
+}
+
+document.getElementById("startBtn").onclick = startConversation;
+document.getElementById("continueBtn").onclick = continueConversation;
+document.getElementById("swapBtn").onclick = () => {
+  const temp = askerSelect.selectedIndex;
+  askerSelect.selectedIndex = answererSelect.selectedIndex;
+  answererSelect.selectedIndex = temp;
+};
+document.getElementById("clearBtn").onclick = () => chatDiv.innerHTML = "";
+
+// ===== שמירת שיחה =====
+document.getElementById("saveChatBtn").onclick = () => {
+  const text = [...chatDiv.querySelectorAll(".bubble")].map(b => b.innerText).join("\n");
+  const blob = new Blob([text], { type: "text/plain" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "chat.txt";
+  a.click();
+};
+
+</script>
 </body>
 </html>
