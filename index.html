@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מכונת דיאלוגים עם Gemini 1.5</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>מכונת דיאלוגים עם Gemini 1.5</h1>
+        
+        <div id="api-key-section" class="card">
+            <h2>הזנת מפתח API</h2>
+            <div class="input-group">
+                <input type="password" id="api-key-input" placeholder="הזן את מפתח ה-API של Gemini">
+                <button id="save-api-key-btn">שמור</button>
+            </div>
+            <p id="api-key-status" class="status"></p>
+        </div>
+        
+        <div id="app-section" class="hidden">
+            <div class="settings-panel card">
+                <div class="setting-group">
+                    <label for="topic-input">בחר נושא לשיחה:</label>
+                    <input type="text" id="topic-input" placeholder="לדוגמה: בינה מלאכותית, היסטוריה">
+                </div>
+                
+                <div class="setting-group">
+                    <label for="character1-select">דמות שואלת:</label>
+                    <select id="character1-select"></select>
+                </div>
+                
+                <div class="setting-group">
+                    <label for="character2-select">דמות עונה:</label>
+                    <select id="character2-select"></select>
+                </div>
+                
+                <button id="start-chat-btn" class="primary-btn">התחל שיחה</button>
+            </div>
+            
+            <div id="chat-container" class="chat-container hidden card">
+                <div id="chat-header" class="chat-header">
+                    <div id="character1-display"></div>
+                    <div id="character2-display"></div>
+                </div>
+                <div id="conversation-area" class="conversation-area">
+                    <p class="system-message">בחר נושא ודמויות כדי להתחיל...</p>
+                </div>
+                <div id="chat-controls" class="chat-controls">
+                    <button id="continue-chat-btn" class="secondary-btn">המשך שיחה (5 סבבים)</button>
+                    <button id="swap-characters-btn" class="secondary-btn">החלף דמויות</button>
+                </div>
+                <div id="progress-bar">
+                    <div id="progress-text"></div>
+                    <div id="progress-fill"></div>
+                </div>
+            </div>
+            
+            <div class="actions-panel card">
+                <button id="save-chat-btn" class="secondary-btn"><i class="fas fa-save"></i> שמור שיחה</button>
+                <button id="clear-chat-btn" class="secondary-btn"><i class="fas fa-trash-alt"></i> נקה שיחה</button>
+            </div>
+        </div>
+        
+        <div id="custom-character-modal" class="modal hidden">
+            <div class="modal-content">
+                <h3>הוספת דמות מותאמת אישית</h3>
+                <div class="input-group">
+                    <label for="custom-name">שם הדמות:</label>
+                    <input type="text" id="custom-name">
+                </div>
+                <div class="input-group">
+                    <label for="custom-prompt">פרומפט מערכת:</label>
+                    <textarea id="custom-prompt" rows="4"></textarea>
+                </div>
+                <div class="modal-buttons">
+                    <button id="add-custom-character-btn" class="primary-btn">הוסף</button>
+                    <button id="cancel-custom-character-btn" class="secondary-btn">ביטול</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
