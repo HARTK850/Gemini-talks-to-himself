@@ -321,6 +321,7 @@ function toggleHistoryPanel(show) {
     const isOpen = show === undefined ? !historyPanel.classList.contains('open') : show;
     historyPanel.classList.toggle('open', isOpen);
     historyPanelOverlay.classList.toggle('hidden', !isOpen);
+    document.body.classList.toggle('history-open', isOpen);
 }
 
 function init() {
