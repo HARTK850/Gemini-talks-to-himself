@@ -1,116 +1,108 @@
+
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ג'מיני מדבר עם עצמו</title>
+    <title>Gemini מדבר לעצמו</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/genai": "https://esm.run/@google/genai"
+        }
+      }
+    </script>
 </head>
 <body>
-    <div class="app-container">
-        <!-- Header -->
-        <header class="header">
-            <h1 class="title">🤖 ג'מיני מדבר עם עצמו</h1>
-            <p class="subtitle">שיחות מרתקות בין דמויות שונות באמצעות בינה מלאכותית</p>
+    <div id="app">
+        <!-- API Key Modal -->
+        <div id="api-key-modal" class="modal-overlay show">
+            <div class="modal-content">
+                <h2>מפתח API של Gemini</h2>
+                <p>כדי להתחיל, אנא הכנס את מפתח ה-API שלך. המפתח יישמר באופן מקומי בדפדפן שלך בלבד.</p>
+                <div class="input-group">
+                    <input type="password" id="api-key-input" placeholder="הכנס מפתח API כאן">
+                    <button id="validate-api-key-btn">שמור ובדוק תקינות</button>
+                </div>
+                <div id="api-key-status" class="status-message" role="alert"></div>
+                <p class="api-key-link">אין לך מפתח? <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">השג מפתח כאן</a></p>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <header class="main-header">
+            <h1>צ'אט ג'מיני אינטראקטיבי</h1>
+            <p>צפה בשתי דמויות מונעות בינה מלאכותית מנהלות שיחה בנושא שתבחר.</p>
         </header>
 
-        <!-- API Key Setup -->
-        <div id="apiSetup" class="setup-container">
-            <div class="api-section">
-                <h2>🔑 הגדרת מפתח API</h2>
-                <div class="input-group">
-                    <input type="password" id="apiKey" placeholder="הזן את מפתח Gemini API שלך">
-                    <button id="validateApi" class="btn primary">בדוק מפתח</button>
+        <main id="main-content" class="hidden">
+            <section id="setup-section" class="card">
+                <h2>הגדרות שיחה</h2>
+                <div class="setup-grid">
+                    <div class="form-group">
+                        <label for="topic-input">נושא השיחה</label>
+                        <input type="text" id="topic-input" placeholder="לדוגמה: משמעות החיים, פוליטיקה, פיצה עם אננס">
+                    </div>
+                    <div class="form-group">
+                        <label for="questioner-select">הדמות השואלת</label>
+                        <select id="questioner-select"></select>
+                    </div>
+                     <div class="form-group">
+                        <label for="answerer-select">הדמות העונה</label>
+                        <select id="answerer-select"></select>
+                    </div>
                 </div>
-                <div id="apiStatus" class="status-message"></div>
-                <div class="help-text">
-                    <p>🔗 <a href="https://makersuite.google.com/app/apikey" target="_blank">קבל מפתח API חינמי</a></p>
+                 <div id="custom-questioner-prompt" class="custom-prompt-area hidden">
+                    <input type="text" id="custom-questioner-name" placeholder="שם הדמות השואלת" class="custom-name-input">
+                    <textarea id="custom-questioner-system-prompt" placeholder="הגדר את אישיות הדמות השואלת (System Prompt)"></textarea>
                 </div>
-            </div>
-        </div>
+                <div id="custom-answerer-prompt" class="custom-prompt-area hidden">
+                     <input type="text" id="custom-answerer-name" placeholder="שם הדמות העונה" class="custom-name-input">
+                    <textarea id="custom-answerer-system-prompt" placeholder="הגדר את אישיות הדמות העונה (System Prompt)"></textarea>
+                </div>
+                <button id="start-chat-btn" class="cta-button">התחל שיחה (5 סבבים)</button>
+            </section>
 
-        <!-- Main App -->
-        <div id="mainApp" class="main-app" style="display: none;">
-            <!-- Configuration Section -->
-            <div class="config-section">
-                <div class="config-row">
-                    <div class="config-item">
-                        <label>📝 נושא השיחה:</label>
-                        <input type="text" id="topic" placeholder="לדוגמה: המצב הכלכלי בישראל">
-                    </div>
-                </div>
-                
-                <div class="config-row">
-                    <div class="config-item">
-                        <label>🎭 דמות שואלת:</label>
-                        <select id="askerSelect"></select>
-                        <div id="askerCustom" class="custom-character" style="display: none;">
-                            <input type="text" id="askerName" placeholder="שם הדמות">
-                            <textarea id="askerPrompt" placeholder="תיאור הדמות והתנהגותה..."></textarea>
-                        </div>
-                    </div>
-                    
-                    <div class="config-item">
-                        <label>💬 דמות עונה:</label>
-                        <select id="answererSelect"></select>
-                        <div id="answererCustom" class="custom-character" style="display: none;">
-                            <input type="text" id="answererName" placeholder="שם הדמות">
-                            <textarea id="answererPrompt" placeholder="תיאור הדמות והתנהגותה..."></textarea>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="action-buttons">
-                    <button id="startChat" class="btn primary large">🚀 התחל שיחה</button>
-                    <button id="swapCharacters" class="btn secondary">🔄 החלף דמויות</button>
-                </div>
-            </div>
-
-            <!-- Chat Section -->
-            <div id="chatSection" class="chat-section" style="display: none;">
+            <section id="chat-section" class="hidden">
                 <div class="chat-header">
-                    <div class="progress-bar">
-                        <div id="progressFill" class="progress-fill"></div>
-                    </div>
-                    <div id="progressText" class="progress-text">0 מתוך 5</div>
+                    <h2 id="chat-title"></h2>
+                    <div id="progress-indicator"></div>
                 </div>
-                
-                <div id="chatMessages" class="chat-messages"></div>
-                
-                <div class="chat-actions">
-                    <button id="continueChat" class="btn primary" style="display: none;">➕ המשך שיחה (5 סבבים נוספים)</button>
-                    <button id="newChat" class="btn secondary">🔄 שיחה חדשה</button>
-                    <button id="saveChat" class="btn secondary">💾 שמור שיחה</button>
-                    <button id="clearChat" class="btn warning">🗑️ נקה שיחה</button>
+                <div id="chat-container" class="card">
+                    <!-- Messages will be injected here -->
                 </div>
-            </div>
-
-            <!-- Loading -->
-            <div id="loading" class="loading" style="display: none;">
-                <div class="spinner"></div>
-                <p>ג'מיני חושב...</p>
-            </div>
-        </div>
-
-        <!-- Footer -->
-        <footer class="footer">
-            <p>נוצר עם ❤️ על ידי מייבין במקצת</p>
-        </footer>
+                <div id="chat-controls" class="chat-controls-container">
+                     <button id="continue-chat-btn" class="hidden">המשך שיחה (5 סבבים נוספים)</button>
+                     <button id="swap-characters-btn">החלף דמויות</button>
+                     <div class="save-menu">
+                        <button id="save-chat-btn">שמור שיחה</button>
+                        <div class="save-options">
+                            <a href="#" id="save-txt">שמור כ-TXT</a>
+                            <a href="#" id="save-json">שמור כ-JSON</a>
+                            <a href="#" id="save-png">שמור כתמונה (PNG)</a>
+                        </div>
+                     </div>
+                     <button id="clear-chat-btn">נקה שיחה</button>
+                </div>
+            </section>
+        </main>
     </div>
 
-    <!-- Save Dialog -->
-    <div id="saveDialog" class="modal" style="display: none;">
-        <div class="modal-content">
-            <h3>שמור שיחה</h3>
-            <div class="save-options">
-                <button id="saveTxt" class="btn primary">💾 שמור כ-TXT</button>
-                <button id="saveJson" class="btn secondary">📄 שמור כ-JSON</button>
+    <template id="chat-message-template">
+        <div class="chat-message">
+            <img class="avatar" src="" alt="Avatar">
+            <div class="message-content">
+                <div class="message-author"></div>
+                <div class="message-text"></div>
             </div>
-            <button id="closeSaveDialog" class="btn warning">❌ סגור</button>
         </div>
-    </div>
-
-    <script src="characters.js"></script>
-    <script src="script.js"></script>
+    </template>
+    
+    <script type="module" src="index.js"></script>
 </body>
 </html>
