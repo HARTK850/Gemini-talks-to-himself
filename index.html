@@ -3,22 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מכונת שיחה: ג'מיני 1.5 מדבר עם עצמו</title>
+    <title>ג'מיני מדבר עם עצמו</title>
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@google/generative-ai"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
     <header class="app-header">
-        <h1 class="app-title">מכונת שיחה</h1>
-        <p class="app-subtitle">ג'מיני 1.5 מדבר עם עצמו</p>
+        <h1 class="app-title">ג'מיני מדבר עם עצמו</h1>
+        <p class="app-subtitle">בחר דמויות ונושא, ותן להן לשוחח</p>
     </header>
 
     <main class="app-main">
         <div class="api-key-container">
-            <input type="password" id="api-key-input" placeholder="הכנס מפתח API של Gemini 1.5">
+            <input type="password" id="api-key-input" placeholder="הכנס מפתח API של Gemini">
             <button id="save-api-key-btn">שמור</button>
             <span id="api-key-status" class="status-indicator"></span>
         </div>
@@ -41,21 +42,25 @@
             <div class="character-selection">
                 <div class="character-card" id="asker-card">
                     <h3 class="card-title">שואל שאלות</h3>
-                    <div class="character-avatar-placeholder"></div>
+                    <div class="character-avatar-container">
+                        <span class="character-icon"></span>
+                    </div>
                     <select id="asker-select"></select>
                 </div>
                 <div class="swap-btn-container">
-                    <button id="swap-characters-btn" class="icon-btn">🔄</button>
+                    <button id="swap-characters-btn" class="icon-btn" title="החלף דמויות">🔄</button>
                 </div>
                 <div class="character-card" id="answerer-card">
                     <h3 class="card-title">עונה תשובות</h3>
-                    <div class="character-avatar-placeholder"></div>
+                    <div class="character-avatar-container">
+                        <span class="character-icon"></span>
+                    </div>
                     <select id="answerer-select"></select>
                 </div>
             </div>
 
             <div class="custom-character-container">
-                <button id="add-custom-character-btn">הוסף דמות מותאמת אישית</button>
+                <button id="add-custom-character-btn" class="secondary-btn">הוסף דמות מותאמת אישית</button>
             </div>
 
             <div id="custom-character-form" class="hidden">
@@ -63,38 +68,33 @@
                 <input type="text" id="custom-character-name" placeholder="שם הדמות">
                 <textarea id="custom-character-prompt" placeholder="הגדר פרומפט מערכת (לדוגמה: 'אתה בלש חכם וציני...')"></textarea>
                 <div class="form-actions">
-                    <button id="save-custom-character-btn">שמור דמות</button>
-                    <button id="cancel-custom-character-btn">ביטול</button>
+                    <button id="save-custom-character-btn" class="primary-btn">שמור</button>
+                    <button id="cancel-custom-character-btn" class="secondary-btn">ביטול</button>
                 </div>
             </div>
 
             <div class="action-buttons">
-                <button id="start-conversation-btn">התחל שיחה</button>
-                <button id="clear-conversation-btn" class="secondary-btn">נקה שיחה</button>
+                <button id="start-conversation-btn" class="primary-btn">התחל שיחה</button>
             </div>
         </div>
 
         <div class="conversation-container hidden" id="conversation-display">
-            <div class="progress-indicator">
-                <span id="current-round">0</span> מתוך <span id="total-rounds">5</span>
+            <div class="conversation-header">
+                <div class="progress-indicator">
+                    <span id="current-round">0</span> מתוך <span id="total-rounds">5</span> סבבים
+                </div>
+                <div class="conversation-controls">
+                    <button id="clear-conversation-btn" class="secondary-btn">נקה שיחה</button>
+                    <button id="save-conversation-btn" class="secondary-btn">שמור שיחה</button>
+                </div>
             </div>
             <div id="chat-box" class="chat-box">
                 </div>
             <div class="conversation-actions">
-                <button id="continue-conversation-btn">המשך שיחה (5 סבבים נוספים)</button>
-                <button id="save-conversation-btn" class="secondary-btn">שמור שיחה</button>
+                <button id="continue-conversation-btn" class="primary-btn">המשך שיחה (5 סבבים נוספים)</button>
             </div>
         </div>
     </main>
-
-    <div id="avatar-modal" class="modal hidden">
-        <div class="modal-content">
-            <span class="close-btn">&times;</span>
-            <h3>בחר אווטאר לדמות:</h3>
-            <div id="avatar-selection-grid" class="avatar-grid">
-                </div>
-        </div>
-    </div>
 
     <script src="script.js"></script>
 </body>
