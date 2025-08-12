@@ -6,6 +6,7 @@ const apiKeyInput = document.getElementById('api-key-input');
 const validateApiKeyBtn = document.getElementById('validate-api-key-btn');
 const apiKeyStatus = document.getElementById('api-key-status');
 const mainContent = document.getElementById('main-content');
+const editApiKeyBtn = document.getElementById('edit-api-key-btn');
 
 const topicInput = document.getElementById('topic-input');
 const questionerSelect = document.getElementById('questioner-select');
@@ -111,6 +112,7 @@ function init() {
         validateAndSetApiKey(savedApiKey);
     } else {
         apiKeyModal.classList.add('show');
+        mainContent.classList.add('hidden');
     }
 
     // Event Listeners
@@ -123,7 +125,8 @@ function init() {
             apiKeyStatus.className = 'status-message error';
         }
     });
-
+    
+    editApiKeyBtn.addEventListener('click', openApiKeyModal);
     questionerSelect.addEventListener('change', handleCustomCharacterSelection);
     answererSelect.addEventListener('change', handleCustomCharacterSelection);
     startChatBtn.addEventListener('click', startNewConversation);
@@ -133,6 +136,19 @@ function init() {
     saveTxtBtn.addEventListener('click', (e) => { e.preventDefault(); saveConversation('txt'); });
     saveJsonBtn.addEventListener('click', (e) => { e.preventDefault(); saveConversation('json'); });
     savePngBtn.addEventListener('click', (e) => { e.preventDefault(); saveConversation('png'); });
+}
+
+/**
+ * Opens the API key modal for editing.
+ */
+function openApiKeyModal() {
+    apiKeyStatus.textContent = 'ניתן לעדכן את המפתח השמור או להכניס חדש.';
+    apiKeyStatus.className = 'status-message';
+    const currentKey = localStorage.getItem('gemini_api_key');
+    if (currentKey) {
+        apiKeyInput.value = currentKey;
+    }
+    apiKeyModal.classList.add('show');
 }
 
 /**
@@ -165,6 +181,8 @@ async function validateAndSetApiKey(key) {
         apiKeyStatus.textContent = 'המפתח אינו תקין או שהייתה שגיאת רשת. אנא נסה שוב.';
         apiKeyStatus.className = 'status-message error';
         localStorage.removeItem('gemini_api_key');
+        mainContent.classList.add('hidden');
+        apiKeyModal.classList.add('show');
     } finally {
         validateApiKeyBtn.disabled = false;
     }
@@ -316,6 +334,7 @@ function setGeneratingState(generating) {
     continueChatBtn.disabled = generating;
     swapCharactersBtn.disabled = generating;
     clearChatBtn.disabled = generating;
+    editApiKeyBtn.disabled = generating;
     topicInput.disabled = generating;
     questionerSelect.disabled = generating;
     answererSelect.disabled = generating;
