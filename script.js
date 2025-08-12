@@ -242,21 +242,25 @@ saveConversationBtn.addEventListener('click', () => {
 
 // --- Functions ---
 
+// ... (הקוד הקודם נשאר זהה עד לכאן)
+
+// --- Functions ---
+
 function loadApiKey() {
     const savedKey = localStorage.getItem('geminiApiKey');
     if (savedKey) {
         apiKey = savedKey;
         apiKeyInput.value = '********';
         apiKeyStatus.classList.add('valid');
+        checkApiKeyStatus(); // We now check the status on load
     }
 }
 
 async function checkAndSaveApiKey(key) {
     try {
         const genAI = new GoogleGenerativeAI(key);
+        // Using a simple model and query to test the key
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        
-        // A minimal test query
         const result = await model.generateContent("hello");
         const response = await result.response;
         
@@ -280,6 +284,7 @@ async function checkAndSaveApiKey(key) {
         apiKeyInvalidMessage.classList.remove('hidden');
         apiKeyValidMessage.classList.add('hidden');
         mainControls.classList.add('hidden');
+        apiKey = null; // Clear the key from memory if invalid
     }
 }
 
@@ -294,6 +299,8 @@ function checkApiKeyStatus() {
         apiKeyValidMessage.classList.add('hidden');
     }
 }
+
+// ... (שאר הקוד נשאר זהה)
 
 function populateCharacterSelects() {
     askerSelect.innerHTML = '';
