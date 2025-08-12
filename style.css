@@ -242,13 +242,10 @@ body[dir="rtl"].history-open #app {
 
 .setup-actions {
     display: flex;
+    flex-direction: column;
+    align-items: stretch;
     gap: 1rem;
-    margin-top: 1.5rem;
-    flex-wrap: wrap;
-}
-
-.setup-actions .cta-button {
-    flex-grow: 1;
+    margin-top: 2rem;
 }
 
 label {
@@ -735,8 +732,5 @@ body:not([dir="rtl"]) .history-item.favorite {
     }
     .chat-message {
         max-width: 95%;
-    }
-    .setup-actions {
-        flex-direction: column;
     }
 }
