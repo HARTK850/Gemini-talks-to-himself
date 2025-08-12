@@ -119,48 +119,78 @@ class GeminiChatApp {
         this.validateApiBtn.disabled = true;
         this.validateApiBtn.textContent = 'בודק...';
         
-        try {
-            // Test query to validate API key
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: 'היי, זה בדיקה של מפתח ה-API. אנא השב בקצרה שהמפתח עובד.'
+        const maxRetries = 3;
+        let retryCount = 0;
+        
+        while (retryCount <= maxRetries) {
+            try {
+                // Test query to validate API key
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: 'היי, זה בדיקה של מפתח ה-API. אנא השב בקצרה שהמפתח עובד.'
+                            }]
                         }]
-                    }]
-                })
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.candidates && data.candidates[0]) {
-                    this.apiKey = apiKey;
-                    this.isApiValid = true;
-                    localStorage.setItem('gemini_api_key', apiKey);
-                    this.showApiStatus('מפתח API תקין! ✅', 'success');
-                    setTimeout(() => {
-                        this.apiSetup.style.display = 'none';
-                        this.mainApp.style.display = 'block';
-                    }, 1500);
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.candidates && data.candidates[0]) {
+                        this.apiKey = apiKey;
+                        this.isApiValid = true;
+                        localStorage.setItem('gemini_api_key', apiKey);
+                        this.showApiStatus('מפתח API תקין! ✅', 'success');
+                        setTimeout(() => {
+                            this.apiSetup.style.display = 'none';
+                            this.mainApp.style.display = 'block';
+                        }, 1500);
+                        break; // Success, exit retry loop
+                    } else {
+                        throw new Error('תגובה לא תקינה מהשרת');
+                    }
                 } else {
-                    throw new Error('תגובה לא תקינה מהשרת');
+                    const errorData = await response.json();
+                    const errorMessage = errorData.error?.message || 'מפתח API לא תקין';
+                    
+                    // Check if it's a retryable error (5xx status or overloaded message)
+                    if ((response.status >= 500 || errorMessage.toLowerCase().includes('overloaded')) && retryCount < maxRetries) {
+                        retryCount++;
+                        const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 2s, 4s, 8s
+                        console.log(`API overloaded during validation, retrying in ${delay/1000} seconds... (attempt ${retryCount}/${maxRetries})`);
+                        this.validateApiBtn.textContent = `בודק... (ניסיון ${retryCount}/${maxRetries})`;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
+                    }
+                    
+                    throw new Error(errorMessage);
                 }
-            } else {
-                const errorData = await response.json();
-                throw new Error(errorData.error?.message || 'מפתח API לא תקין');
+                
+            } catch (error) {
+                // If it's a network error or fetch error, retry
+                if (retryCount < maxRetries && (error.name === 'TypeError' || error.message.includes('fetch'))) {
+                    retryCount++;
+                    const delay = Math.pow(2, retryCount) * 1000;
+                    console.log(`Network error during validation, retrying in ${delay/1000} seconds... (attempt ${retryCount}/${maxRetries})`);
+                    this.validateApiBtn.textContent = `בודק... (ניסיון ${retryCount}/${maxRetries})`;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    continue;
+                }
+                
+                console.error('API Validation Error:', error);
+                this.showApiStatus(`שגיאה: ${error.message}`, 'error');
+                this.isApiValid = false;
+                break; // Non-retryable error, exit loop
             }
-        } catch (error) {
-            console.error('API Validation Error:', error);
-            this.showApiStatus(`שגיאה: ${error.message}`, 'error');
-            this.isApiValid = false;
-        } finally {
-            this.validateApiBtn.disabled = false;
-            this.validateApiBtn.textContent = 'בדוק מפתח';
         }
+        
+        this.validateApiBtn.disabled = false;
+        this.validateApiBtn.textContent = 'בדוק מפתח';
     }
     
     showApiStatus(message, type) {
@@ -345,35 +375,65 @@ ${contextPrompt}
     }
     
     async callGeminiAPI(prompt) {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${this.apiKey}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{
-                        text: prompt
-                    }]
-                }],
-                generationConfig: {
-                    temperature: 0.8,
-                    maxOutputTokens: 200,
+        const maxRetries = 3;
+        let retryCount = 0;
+        
+        while (retryCount <= maxRetries) {
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${this.apiKey}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: prompt
+                            }]
+                        }],
+                        generationConfig: {
+                            temperature: 0.8,
+                            maxOutputTokens: 200,
+                        }
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    const errorMessage = errorData.error?.message || 'שגיאה בקריאה ל-API';
+                    
+                    // Check if it's a retryable error (5xx status or overloaded message)
+                    if ((response.status >= 500 || errorMessage.toLowerCase().includes('overloaded')) && retryCount < maxRetries) {
+                        retryCount++;
+                        const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 2s, 4s, 8s
+                        console.log(`API overloaded, retrying in ${delay/1000} seconds... (attempt ${retryCount}/${maxRetries})`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
+                    }
+                    
+                    throw new Error(errorMessage);
                 }
-            })
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error?.message || 'שגיאה בקריאה ל-API');
+                
+                const data = await response.json();
+                if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+                    throw new Error('תגובה לא תקינה מהשרת');
+                }
+                
+                return data.candidates[0].content.parts[0].text.trim();
+                
+            } catch (error) {
+                // If it's a network error or fetch error, retry
+                if (retryCount < maxRetries && (error.name === 'TypeError' || error.message.includes('fetch'))) {
+                    retryCount++;
+                    const delay = Math.pow(2, retryCount) * 1000;
+                    console.log(`Network error, retrying in ${delay/1000} seconds... (attempt ${retryCount}/${maxRetries})`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    continue;
+                }
+                
+                throw error;
+            }
         }
-        
-        const data = await response.json();
-        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-            throw new Error('תגובה לא תקינה מהשרת');
-        }
-        
-        return data.candidates[0].content.parts[0].text.trim();
     }
     
     addMessageToChat(type, text) {
