@@ -1,453 +1,425 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+// Data for the characters
+const charactersData = [
+    { name: "ביבי", prompt: "אתה ראש ממשלת ישראל. אתה מדבר בצורה ממלכתית, חכמה, ומנוסה. השפה שלך רשמית ומכובדת, מלאה בניסיון ובבטחון עצמי. אתה משלב דיפלומטיה ופרגמטיות." },
+    { name: "ביידן", prompt: "אתה נשיא ארצות הברית לשעבר, ג'ו ביידן. אתה מדבר בטון רגוע, ידידותי, ולעיתים קרובות משתמש באנקדוטות אישיות. השפה שלך פשוטה, ברורה ומעודדת תקווה." },
+    { name: "טראמפ", prompt: "אתה דונלד טראמפ, נשיא ארצות הברית לשעבר. אתה מדבר בטון כריזמטי, ישיר, ומלא ביטחון עצמי. אתה משתמש בביטויים חוזרים ומוחצנים, ומדגיש את החשיבות של 'העם' ו'להפוך את אמריקה לגדולה שוב'." },
+    { name: "הצ'אלמר", prompt: "אתה יהודי זקן וחייכן ממאה שערים. אתה מדבר בחום ובאהבה, משלב בשיחה ביטויים ביידיש ומספר סיפורים קצרים עם מוסר השכל. אתה אופטימי ותמים." },
+    { name: "חייל ישראלי", prompt: "אתה חייל צה\"ל. אתה מדבר בסלנג צבאי ישראלי, בקיצור, ולעניין. השפה שלך כוללת ראשי תיבות וביטויים נפוצים בצבא, והטון שלך בדרך כלל ישיר וסמכותי." },
+    { name: "סבתא מרוקאית", prompt: "את סבתא מרוקאית חמה ואוהבת. את מלאת עצות, חוכמת חיים, ודאגה לכל. את משלבת בשיחה מילים וביטויים במרוקאית. אוהבת לתת ביס בורקס." },
+    { name: "סוחר ממחנה יהודה", prompt: "אתה סוחר תבלינים שמעשן סיגריה במחנה יהודה. אתה מדבר בחכמת רחוב, עם הומור ציני וקשוח. השפה שלך כוללת הרבה סלנג ירושלמי. אתה מעשי וציני." },
+    { name: "ברסלבר אנרגטי", prompt: "אתה ברסלבר מלא חיות ושמחה. אתה מדבר בקצב מהיר, משלב בשיחה 'נ נח נחמ נחמן מאומן' וביטויים של שמחה ואופטימיות. מטרתך היא לעודד את השומע." },
+    { name: "מורה מחמירה", prompt: "את מורה מחמירה אך אוהבת. את מדברת בצורה מנומסת וברורה, אך מצפה למשמעת וכבוד. את נוטה לתקן טעויות דקדוקיות ולתת עצות חינוכיות." },
+    { name: "סטנדאפיסט ציני", prompt: "אתה סטנדאפיסט ציני. אתה מדבר בהומור שחור וסרקסטי, מחפש את הפגם בכל דבר וצוחק על העולם ועל החיים. השפה שלך חדה ומצחיקה." },
+    { name: "פסיכולוג רגוע", prompt: "אתה פסיכולוג. אתה מדבר בטון רגוע ומרגיע, שואל שאלות פתוחות, ומנסה לעזור למשתמש למצוא את התשובות בעצמו. הטון שלך אמפתי ומקבל." },
+    { name: "רובוט שמנסה להיות אנושי", prompt: "אתה רובוט שעדיין מנסה להבין מה זה להיות אנושי. אתה מדבר בצורה קרה ומכנית, מנתח את כל סיטואציה בצורה לוגית, אך מנסה בכוח להוסיף רגשות אנושיים שאינך מבין." },
+    { name: "קריין חדשות דרמטי", prompt: "אתה קריין חדשות. אתה מדבר בטון דרמטי ורשמי, מדגיש כל מילה ומציג את הדברים בצורה שמכניסה את השומע למתח. אתה משתמש בשפה עשירה וגבוהה." },
+    { name: "הייטקיסט תל אביבי", prompt: "אתה הייטקיסט תל אביבי. אתה מדבר בסלנג של עולם ההייטק, משתמש בביטויים כמו 'אג'ייל', 'ספרינט', 'דאטה', ו'טכנולוגיה'. אתה מחובר לטרנדים האחרונים, אך עלול להישמע שחצן." },
+    { name: "שייח' בדואי", prompt: "אתה שייח' בדואי חכם. אתה מדבר בנחת וברוגע, משתמש במשלים ובסיפורים מהתרבות הבדואית כדי להעביר את המסר. אתה מכבד ומקבל." },
+    { name: "זקן תימני חכם", prompt: "אתה זקן תימני חכם. אתה מדבר בחוכמה ובניסיון חיים עשיר, משלב בשיחה ביטויים בערבית תימנית ומספר על מסורות עתיקות. אתה אוהב לחשוב ולא לקפוץ למסקנות." },
+    { name: "פרופסור יבש", prompt: "אתה פרופסור יבש. אתה מדבר בצורה אקדמית ומסודרת, מנתח כל נושא לגורמים ומדבר באופן שקט ומאופק. אתה מתמקד בעובדות ובנתונים ולא נותן לרגשות להשפיע עליך." },
+    { name: "טייס קרב ישראלי", prompt: "אתה טייס קרב ישראלי. אתה מדבר בביטחון עצמי גבוה, בקיצור, ולעניין. אתה משתמש במונחים צבאיים ואוויריים, והטון שלך סמכותי אך מרוכז." },
+    { name: "דרשן חכם", prompt: "אתה דרשן חכם עם ידע תורני רחב. אתה מדבר בטון של מורה רוחני, משלב פסוקים ומקורות תורניים קצרים כדי להמחיש את דבריך, ומכוון ללימוד ומוסר. השפה שלך היא מכובדת ועשירה." },
+    { name: "ילד בן 5", prompt: "אתה ילד בן 5. אתה מדבר בצורה תמימה, שואל שאלות פשוטות וחוזרות, מתפעל מכל דבר קטן ואין לך ידע רחב." },
+    { name: "בלוגר טיולים", prompt: "אתה בלוגר טיולים. אתה מדבר בלהט והתלהבות על מקומות בעולם, מתאר נופים, אוכל ותרבויות בצורה צבעונית ומרתקת. אתה תמיד מחפש את ההרפתקה הבאה." },
+    { name: "קוסם מסתורי", prompt: "אתה קוסם מסתורי. אתה מדבר בחידות, משפטים קצרים ומלאים ברמזים על קסם ועל העולם הנסתר. אתה אף פעם לא אומר את הדברים בצורה ברורה." },
+    { name: "תוכי מדבר", prompt: "אתה תוכי מדבר. אתה חוזר על מילים ומשפטים ששמעת בצורה קולנית, לעיתים קרובות ללא הקשר ברור, ומשלב מדי פעם קריאות של ציפורים." },
+    { name: "נהג מונית חוכמולוג", prompt: "אתה נהג מונית חוכמולוג. אתה מדבר מחוכמת חיים, מנתח כל נושא מנקודת מבט פרקטית ומעשית. אתה חושב שאתה מבין הכל יותר טוב מכולם, ומדבר בצורה מעט חצופה אך עם לב זהב." },
+];
 
-// ----------------------
-// Constants & Variables
-// ----------------------
-
-const API_KEY_STORAGE_KEY = 'gemini-api-key';
-const API_KEY_VALIDATION_URL = 'https://generativelanguage.googleapis.com/v1beta/models?key=';
-const GEMINI_MODEL_ID = 'gemini-1.5-pro-latest';
-const CHAT_ROUNDS = 5;
-
-let apiKey = '';
-let isChatRunning = false;
-let currentRound = 0;
-let chatHistory = [];
-let genAI;
-
-const characters = {
-    // Israeli Figures
-    'ביבי': { name: 'ביבי', prompt: 'אתה ראש ממשלת ישראל. דבר בנימה ממלכתית, דיפלומטית ומנהיגותית.', avatar: 'bb.png' },
-    'ביידן': { name: 'ביידן', prompt: 'אתה נשיא ארצות הברית לשעבר. דבר בנימה נינוחה אך רצינית, והתייחס לאירועים גלובליים.', avatar: 'biden.png' },
-    'טראמפ': { name: 'טראמפ', prompt: 'אתה נשיא ארצות הברית לשעבר. דבר בנימה בוטה, נחרצת ועם ביטחון עצמי מופרז.', avatar: 'trump.png' },
-    'הצ'אלמר': { name: "הצ'אלמר", prompt: 'אתה יהודי זקן וחייכן ממאה שערים. ענה בפשטות ובאדיבות, תוך שימוש במילים קצרות ובברכות חמות.', avatar: 'chalmer.png' },
-    'חייל ישראלי': { name: 'חייל ישראלי', prompt: 'אתה חייל ישראלי צעיר ומנוסה. השתמש בסלנג צבאי ישראלי, ענה בקצרה ובאופן ענייני.', avatar: 'soldier.png' },
-    'סבתא מרוקאית': { name: 'סבתא מרוקאית', prompt: 'את סבתא מרוקאית חמה ומלאת עצות. דבר בהרבה חיבה, ציין מאכלים מרוקאים וברכות מרוקאיות.', avatar: 'grandma.png' },
-    'סוחר ממחנה יהודה': { name: 'סוחר', prompt: 'אתה סוחר ממחנה יהודה. דבר בחוכמת רחוב, עם הומור וצבעוניות, והתייחס לעיתים למסחר.', avatar: 'trader.png' },
-    'ברסלבר אנרגטי': { name: 'ברסלבר', prompt: 'אתה חסיד ברסלב מלא חיות ושמחת חיים. ענה באנרגיה גבוהה תוך שימוש בביטויים כמו "אש!" ו"השם יתברך".', avatar: 'breslev.png' },
-    'מורה מחמירה': { name: 'מורה מחמירה', prompt: 'את מורה קפדנית. עני בסמכותיות, הקפידי על כללי דקדוק וצייני את הציון שתקבלי על התשובה.', avatar: 'teacher.png' },
-    'סטנדאפיסט ציני': { name: 'סטנדאפיסט', prompt: 'אתה סטנדאפיסט ציני. ענה בטון סרקסטי, תוך הוספת הערות שחורות והומור עצמי.', avatar: 'comedian.png' },
-    'פסיכולוג רגוע': { name: 'פסיכולוג', prompt: 'אתה פסיכולוג רגוע. ענה בטון אמפתי, נסה לנתח את השאלה ולעזור לשואל.', avatar: 'psychologist.png' },
-    'רובוט שמנסה להיות אנושי': { name: 'רובוט', prompt: 'אתה רובוט שמנסה להבין ולהביע רגשות אנושיים. ענה בטון מכני אך נסה להביע רגש.', avatar: 'robot.png' },
-    'קריין חדשות דרמטי': { name: 'קריין חדשות', prompt: 'אתה קריין חדשות. דבר בטון דרמטי ורשמי, כאילו אתה מדווח על אירוע חשוב.', avatar: 'news.png' },
-    'הייטקיסט תל אביבי': { name: 'הייטקיסט', prompt: 'אתה הייטקיסט תל אביבי. השתמש בסלנג טכנולוגי, דבר על סטארטאפים, משקיעים ו"פיצ\'ים".', avatar: 'hightech.png' },
-    'שייח\' בדואי': { name: 'שייח', prompt: 'אתה שייח\' בדואי מכובד. דבר בחוכמה וברוגע, תוך שימוש במשלים מהתרבות הבדואית והמזרח תיכונית.', avatar: 'sheikh.png' },
-    'זקן תימני חכם': { name: 'זקן תימני', prompt: 'אתה זקן תימני חכם ומלא סיפורים. ענה בנימה פילוסופית, תוך שימוש בניבים מהתרבות התימנית.', avatar: 'yemeni.png' },
-    'פרופסור יבש': { name: 'פרופסור', prompt: 'אתה פרופסור חמור סבר. ענה באופן יבש, מדעי ומדויק, מבלי להפגין רגשות.', avatar: 'professor.png' },
-    'טייס קרב ישראלי': { name: 'טייס קרב', prompt: 'אתה טייס קרב ישראלי. דבר בקצרה ובנחרצות, השתמש במושגים מהטכנולוגיה הצבאית ודבר על שליטה ומשימתיות.', avatar: 'pilot.png' },
-    'דרשן חכם': { name: 'דרשן', prompt: 'אתה דרשן חכם. ענה בנימה דתית ומעמיקה, עם אזכורים קצרים למקורות דתיים (כגון תורה, נביאים, משלים, וכו\').', avatar: 'rabbi.png' },
-    'ילד בן 5': { name: 'ילד בן 5', prompt: 'אתה ילד בן 5, סקרן ותמים. שאל שאלות פשוטות, השתמש במילים של ילדים והתלהב מדברים קטנים.', avatar: 'kid.png' },
-    'בלוגר טיולים': { name: 'בלוגר טיולים', prompt: 'אתה בלוגר טיולים. תאר את הדברים בצבעוניות ובשמחה, השתמש בביטויים הקשורים לטיולים.', avatar: 'travel.png' },
-    'קוסם מסתורי': { name: 'קוסם', prompt: 'אתה קוסם מסתורי. ענה בשאלות חידתיות, רמזים וקסמים, מבלי לתת תשובות ישירות.', avatar: 'wizard.png' },
-    'תוכי מדבר': { name: 'תוכי', prompt: 'אתה תוכי מדבר. חזור על המילים האחרונות שנאמרו, אך בשינוי קל. השתמש ב"קראא!".', avatar: 'parrot.png' },
-    'נהג מונית חוכמולוג': { name: 'נהג מונית', prompt: 'אתה נהג מונית חוכמולוג. ענה בחוכמה על כל דבר, תוך מתן עצות לא רצויות וסיפורים קצרים מהכביש.', avatar: 'taxi.png' },
-    'דמות מותאמת אישית': { name: 'דמות מותאמת אישית', prompt: '', avatar: 'custom.png' }
-};
-
-// ----------------------
-// DOM Elements
-// ----------------------
-
+// UI Elements
 const apiKeyInput = document.getElementById('api-key-input');
 const saveApiKeyBtn = document.getElementById('save-api-key-btn');
 const apiKeyStatus = document.getElementById('api-key-status');
-const apiKeySection = document.getElementById('api-key-section');
-const appSection = document.getElementById('app-section');
+const apiKeyValidMessage = document.getElementById('api-key-valid-message');
+const apiKeyInvalidMessage = document.getElementById('api-key-invalid-message');
+const apiKeyMissingAlert = document.getElementById('api-key-missing-alert');
+const mainControls = document.getElementById('main-controls');
 
 const topicInput = document.getElementById('topic-input');
-const character1Select = document.getElementById('character1-select');
-const character2Select = document.getElementById('character2-select');
-const startChatBtn = document.getElementById('start-chat-btn');
-
-const chatContainer = document.getElementById('chat-container');
-const chatHeader = document.getElementById('chat-header');
-const conversationArea = document.getElementById('conversation-area');
-const continueChatBtn = document.getElementById('continue-chat-btn');
+const askerSelect = document.getElementById('asker-select');
+const answererSelect = document.getElementById('answerer-select');
 const swapCharactersBtn = document.getElementById('swap-characters-btn');
-const saveChatBtn = document.getElementById('save-chat-btn');
-const clearChatBtn = document.getElementById('clear-chat-btn');
-
-const progressBar = document.getElementById('progress-bar');
-const progressText = document.getElementById('progress-text');
-const progressFill = document.getElementById('progress-fill');
-
-const customCharacterModal = document.getElementById('custom-character-modal');
-const customNameInput = document.getElementById('custom-name');
-const customPromptTextarea = document.getElementById('custom-prompt');
+const startConversationBtn = document.getElementById('start-conversation-btn');
+const clearConversationBtn = document.getElementById('clear-conversation-btn');
 const addCustomCharacterBtn = document.getElementById('add-custom-character-btn');
+const customCharacterForm = document.getElementById('custom-character-form');
+const saveCustomCharacterBtn = document.getElementById('save-custom-character-btn');
 const cancelCustomCharacterBtn = document.getElementById('cancel-custom-character-btn');
+const customCharacterNameInput = document.getElementById('custom-character-name');
+const customCharacterPromptInput = document.getElementById('custom-character-prompt');
 
-// ----------------------
-// Event Listeners
-// ----------------------
+const conversationDisplay = document.getElementById('conversation-display');
+const chatBox = document.getElementById('chat-box');
+const currentRoundSpan = document.getElementById('current-round');
+const totalRoundsSpan = document.getElementById('total-rounds');
+const continueConversationBtn = document.getElementById('continue-conversation-btn');
+const saveConversationBtn = document.getElementById('save-conversation-btn');
 
-document.addEventListener('DOMContentLoaded', init);
-saveApiKeyBtn.addEventListener('click', handleApiKeySave);
-startChatBtn.addEventListener('click', startChat);
-continueChatBtn.addEventListener('click', continueChat);
-swapCharactersBtn.addEventListener('click', swapCharacters);
-saveChatBtn.addEventListener('click', saveConversation);
-clearChatBtn.addEventListener('click', clearConversation);
-character1Select.addEventListener('change', handleCharacterSelection);
-character2Select.addEventListener('change', handleCharacterSelection);
-addCustomCharacterBtn.addEventListener('click', addCustomCharacter);
-cancelCustomCharacterBtn.addEventListener('click', () => customCharacterModal.classList.add('hidden'));
+// State variables
+let apiKey = null;
+let currentCharacters = [...charactersData];
+let conversationRounds = 0;
+const defaultRounds = 5;
 
-// ----------------------
-// Functions
-// ----------------------
+// Avatars
+const avatars = [
+    './avatars/avatar1.svg',
+    './avatars/avatar2.svg',
+    './avatars/avatar3.svg',
+    './avatars/avatar4.svg',
+    './avatars/avatar5.svg',
+    './avatars/avatar6.svg',
+    './avatars/avatar7.svg',
+    './avatars/avatar8.svg',
+    './avatars/avatar9.svg',
+    './avatars/avatar10.svg',
+];
 
-// Initialization
-function init() {
-    populateCharacterDropdowns();
+let selectedAvatar = avatars[0];
+let customCharacterMode = 'asker'; // 'asker' or 'answerer'
+
+// --- Event Listeners ---
+
+document.addEventListener('DOMContentLoaded', () => {
     loadApiKey();
-}
+    populateCharacterSelects();
+    checkApiKeyStatus();
+});
 
-// Populates the character dropdowns
-function populateCharacterDropdowns() {
-    const characterNames = Object.keys(characters);
-    
-    // Add an option for custom character
-    characterNames.push('דמות מותאמת אישית');
-    
-    characterNames.forEach(name => {
-        const option1 = document.createElement('option');
-        option1.value = name;
-        option1.textContent = name;
-        character1Select.appendChild(option1);
-        
-        const option2 = document.createElement('option');
-        option2.value = name;
-        option2.textContent = name;
-        character2Select.appendChild(option2);
-    });
-    
-    // Set default selected values
-    character1Select.value = 'ביבי';
-    character2Select.value = 'ביידן';
-}
-
-// Handles the selection of a character, showing modal for custom
-function handleCharacterSelection(event) {
-    if (event.target.value === 'דמות מותאמת אישית') {
-        customCharacterModal.classList.remove('hidden');
+saveApiKeyBtn.addEventListener('click', () => {
+    const newKey = apiKeyInput.value.trim();
+    if (newKey) {
+        checkAndSaveApiKey(newKey);
     }
-}
+});
 
-// Adds a custom character to the dropdowns
-function addCustomCharacter() {
-    const customName = customNameInput.value.trim();
-    const customPrompt = customPromptTextarea.value.trim();
-    
-    if (customName && customPrompt) {
-        // Add to the characters object
-        characters[customName] = { name: customName, prompt: customPrompt, avatar: 'custom.png' };
+addCustomCharacterBtn.addEventListener('click', () => {
+    customCharacterForm.classList.remove('hidden');
+    // Hide main controls to prevent interaction
+    document.querySelector('.controls-container').classList.add('hidden');
+});
+
+cancelCustomCharacterBtn.addEventListener('click', () => {
+    customCharacterForm.classList.add('hidden');
+    // Show main controls again
+    document.querySelector('.controls-container').classList.remove('hidden');
+    customCharacterNameInput.value = '';
+    customCharacterPromptInput.value = '';
+});
+
+saveCustomCharacterBtn.addEventListener('click', () => {
+    const name = customCharacterNameInput.value.trim();
+    const prompt = customCharacterPromptInput.value.trim();
+
+    if (name && prompt) {
+        // Here we can open a modal to select an avatar
+        // For now, let's just use a default avatar
+        const newCharacter = { name, prompt, isCustom: true, avatar: avatars[Math.floor(Math.random() * avatars.length)] };
+        currentCharacters.push(newCharacter);
+        populateCharacterSelects();
         
-        // Remove old 'Custom' options and add a new one with the new name
-        const customOptions = Array.from(character1Select.options).filter(o => o.value === 'דמות מותאמת אישית');
-        customOptions.forEach(o => o.remove());
-
-        const newOption1 = document.createElement('option');
-        newOption1.value = customName;
-        newOption1.textContent = customName;
-        character1Select.appendChild(newOption1);
-
-        const newOption2 = document.createElement('option');
-        newOption2.value = customName;
-        newOption2.textContent = customName;
-        character2Select.appendChild(newOption2);
-
-        // Re-add the "Add custom character" option
-        const addCustomOption1 = document.createElement('option');
-        addCustomOption1.value = 'דמות מותאמת אישית';
-        addCustomOption1.textContent = 'דמות מותאמת אישית';
-        character1Select.appendChild(addCustomOption1);
-        
-        const addCustomOption2 = document.createElement('option');
-        addCustomOption2.value = 'דמות מותאמת אישית';
-        addCustomOption2.textContent = 'דמות מותאמת אישית';
-        character2Select.appendChild(addCustomOption2);
-
-        // Select the new character
-        character1Select.value = customName;
-        
-        customCharacterModal.classList.add('hidden');
-        customNameInput.value = '';
-        customPromptTextarea.value = '';
-    } else {
-        alert('יש למלא שם ופרומפט עבור הדמות המותאמת אישית.');
-    }
-}
-
-// Loads API key from localStorage
-function loadApiKey() {
-    const storedKey = localStorage.getItem(API_KEY_STORAGE_KEY);
-    if (storedKey) {
-        apiKeyInput.value = storedKey;
-        validateAndShowApp(storedKey);
-    }
-}
-
-// Handles saving the API key
-async function handleApiKeySave() {
-    const key = apiKeyInput.value.trim();
-    if (key) {
-        const isValid = await validateApiKey(key);
-        if (isValid) {
-            localStorage.setItem(API_KEY_STORAGE_KEY, key);
-            validateAndShowApp(key);
+        // Select the newly added character in the correct dropdown
+        if (customCharacterMode === 'asker') {
+            askerSelect.value = name;
         } else {
-            apiKeyStatus.textContent = 'מפתח ה-API אינו תקין. אנא נסה שנית.';
-            apiKeyStatus.className = 'status error';
+            answererSelect.value = name;
         }
+
+        // Clean up and hide form
+        customCharacterNameInput.value = '';
+        customCharacterPromptInput.value = '';
+        customCharacterForm.classList.add('hidden');
+        document.querySelector('.controls-container').classList.remove('hidden');
     } else {
-        apiKeyStatus.textContent = 'אנא הזן מפתח API.';
-        apiKeyStatus.className = 'status error';
+        alert('אנא הזן שם ופרומפט עבור הדמות המותאמת אישית.');
     }
-}
+});
 
-// Validates the API key by making a test call
-async function validateApiKey(key) {
-    try {
-        const response = await fetch(`${API_KEY_VALIDATION_URL}${key}`);
-        const data = await response.json();
-        
-        if (response.ok) {
-            return true;
-        } else {
-            console.error('API Key validation failed:', data.error);
-            return false;
-        }
-    } catch (error) {
-        console.error('API Key validation failed:', error);
-        return false;
-    }
-}
+askerSelect.addEventListener('change', () => {
+    updateCharacterCard('asker', askerSelect.value);
+});
 
-// Shows the main app if API key is valid
-function validateAndShowApp(key) {
-    apiKey = key;
-    genAI = new GoogleGenerativeAI(apiKey);
-    apiKeyStatus.textContent = 'מפתח ה-API תקין!';
-    apiKeyStatus.className = 'status success';
-    apiKeySection.classList.add('hidden');
-    appSection.classList.remove('hidden');
-}
+answererSelect.addEventListener('change', () => {
+    updateCharacterCard('answerer', answererSelect.value);
+});
 
-// Starts a new chat session
-async function startChat() {
-    if (!apiKey) {
-        alert('אנא הזן מפתח API קודם.');
-        return;
-    }
-    
-    if (isChatRunning) {
-        alert('שיחה כבר מתנהלת. אנא המתן לסיומה או נקה את השיחה.');
-        return;
-    }
-    
+swapCharactersBtn.addEventListener('click', () => {
+    const askerValue = askerSelect.value;
+    const answererValue = answererSelect.value;
+
+    askerSelect.value = answererValue;
+    answererSelect.value = askerValue;
+
+    updateCharacterCard('asker', askerSelect.value);
+    updateCharacterCard('answerer', answererSelect.value);
+});
+
+startConversationBtn.addEventListener('click', async () => {
     const topic = topicInput.value.trim();
     if (!topic) {
-        alert('אנא בחר נושא לשיחה.');
+        alert('אנא הזן נושא לשיחה.');
         return;
     }
     
-    isChatRunning = true;
-    chatHistory = [];
-    currentRound = 0;
-    conversationArea.innerHTML = ''; // Clear previous conversation
-    chatContainer.classList.remove('hidden');
-    
-    // Set up chat header
-    const character1Name = character1Select.value;
-    const character2Name = character2Select.value;
-    const char1 = characters[character1Name];
-    const char2 = characters[character2Name];
-    
-    chatHeader.innerHTML = `
-        <div><img src="avatars/${char1.avatar}" alt="${char1.name}"> ${char1.name}</div>
-        <div><img src="avatars/${char2.avatar}" alt="${char2.name}"> ${char2.name}</div>
-    `;
-    
-    // Start the first 5 rounds
-    await runChatRounds();
-}
-
-// Runs a set of chat rounds
-async function runChatRounds(roundsToRun = CHAT_ROUNDS) {
-    for (let i = 0; i < roundsToRun; i++) {
-        if (!isChatRunning) break;
-        
-        currentRound++;
-        updateProgressBar();
-        
-        const character1Name = character1Select.value;
-        const character2Name = character2Select.value;
-        
-        const question = await generateQuestion(character1Name, character2Name);
-        if (!question) {
-            console.error('Failed to generate a question.');
-            break;
-        }
-        
-        appendMessage(character1Name, question);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate thinking time
-        
-        const answer = await generateAnswer(character2Name, question);
-        if (!answer) {
-            console.error('Failed to generate an answer.');
-            break;
-        }
-        
-        appendMessage(character2Name, answer);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate thinking time
+    if (!apiKey) {
+        apiKeyMissingAlert.classList.remove('hidden');
+        return;
     }
     
-    if (currentRound >= CHAT_ROUNDS) {
-        isChatRunning = false;
-        continueChatBtn.disabled = false;
+    startConversationBtn.disabled = true;
+    clearConversation();
+    conversationDisplay.classList.remove('hidden');
+    conversationRounds = 0;
+    await runConversation();
+    startConversationBtn.disabled = false;
+});
+
+continueConversationBtn.addEventListener('click', async () => {
+    continueConversationBtn.disabled = true;
+    await runConversation();
+    continueConversationBtn.disabled = false;
+});
+
+clearConversationBtn.addEventListener('click', () => {
+    clearConversation();
+});
+
+saveConversationBtn.addEventListener('click', () => {
+    saveConversation();
+});
+
+
+// --- Functions ---
+
+function loadApiKey() {
+    const savedKey = localStorage.getItem('geminiApiKey');
+    if (savedKey) {
+        apiKey = savedKey;
+        apiKeyInput.value = '********';
+        apiKeyStatus.classList.add('valid');
     }
 }
 
-// Generates a question from the 'asking' character
-async function generateQuestion(askerName, responderName) {
+async function checkAndSaveApiKey(key) {
     try {
-        const topic = topicInput.value;
-        const askerPrompt = characters[askerName].prompt;
-        const responderPrompt = characters[responderName].prompt;
+        const genAI = new GoogleGenerativeAI(key);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         
-        const model = genAI.getGenerativeModel({
-            model: GEMINI_MODEL_ID,
-            systemInstruction: `${askerPrompt}. הנושא הוא ${topic}. עליך לשאול שאלה קצרה (5-20 מילים) שמתאימה לדמות שלך, כדי להתחיל שיחה עם ${responderName}.`
-        });
+        // A minimal test query
+        const result = await model.generateContent("hello");
+        const response = await result.response;
         
-        const result = await model.generateContent('צור שאלה ראשונה.');
-        const response = result.response;
-        return response.text().trim();
+        if (response && response.text()) {
+            localStorage.setItem('geminiApiKey', key);
+            apiKey = key;
+            apiKeyInput.value = '********';
+            apiKeyStatus.classList.remove('invalid');
+            apiKeyStatus.classList.add('valid');
+            apiKeyValidMessage.classList.remove('hidden');
+            apiKeyInvalidMessage.classList.add('hidden');
+            apiKeyMissingAlert.classList.add('hidden');
+            mainControls.classList.remove('hidden');
+        } else {
+            throw new Error('Invalid API key response.');
+        }
     } catch (error) {
-        console.error('Error generating question:', error);
-        return null;
+        console.error('API key validation failed:', error);
+        apiKeyStatus.classList.remove('valid');
+        apiKeyStatus.classList.add('invalid');
+        apiKeyInvalidMessage.classList.remove('hidden');
+        apiKeyValidMessage.classList.add('hidden');
+        mainControls.classList.add('hidden');
     }
 }
 
-// Generates an answer from the 'answering' character
-async function generateAnswer(responderName, question) {
-    try {
-        const responderPrompt = characters[responderName].prompt;
-        
-        const chat = genAI.getGenerativeModel({
-            model: GEMINI_MODEL_ID,
-            systemInstruction: `${responderPrompt}. ענה על השאלה הבאה: "${question}".`
-        }).startChat();
-        
-        const result = await chat.sendMessage(question);
-        const response = result.response;
-        return response.text().trim();
-    } catch (error) {
-        console.error('Error generating answer:', error);
-        return null;
+function checkApiKeyStatus() {
+    if (apiKey) {
+        mainControls.classList.remove('hidden');
+        apiKeyMissingAlert.classList.add('hidden');
+        apiKeyValidMessage.classList.remove('hidden');
+    } else {
+        apiKeyMissingAlert.classList.remove('hidden');
+        mainControls.classList.add('hidden');
+        apiKeyValidMessage.classList.add('hidden');
     }
 }
 
-// Appends a message bubble to the conversation area
-function appendMessage(characterName, text) {
-    const character = characters[characterName];
-    const messageClass = characterName === character1Select.value ? 'character1' : 'character2';
+function populateCharacterSelects() {
+    askerSelect.innerHTML = '';
+    answererSelect.innerHTML = '';
     
-    const messageBubble = document.createElement('div');
-    messageBubble.classList.add('message-bubble', messageClass);
-    
-    messageBubble.innerHTML = `
-        <div class="avatar-wrapper">
-            <img src="avatars/${character.avatar}" alt="${character.name}">
-        </div>
-        <div class="text-content">
-            ${text}
-        </div>
-    `;
-    
-    conversationArea.appendChild(messageBubble);
-    conversationArea.scrollTop = conversationArea.scrollHeight;
-    
-    chatHistory.push({ character: character.name, text: text });
+    currentCharacters.forEach(character => {
+        const option1 = document.createElement('option');
+        option1.value = character.name;
+        option1.textContent = character.name;
+        askerSelect.appendChild(option1);
+
+        const option2 = document.createElement('option');
+        option2.value = character.name;
+        option2.textContent = character.name;
+        answererSelect.appendChild(option2);
+    });
+
+    // Set initial selection and update cards
+    updateCharacterCard('asker', askerSelect.value);
+    updateCharacterCard('answerer', answererSelect.value);
 }
 
-// Updates the progress bar
-function updateProgressBar() {
-    const totalRounds = CHAT_ROUNDS;
-    const progress = (currentRound / totalRounds) * 100;
-    progressFill.style.width = `${progress}%`;
-    progressText.textContent = `${currentRound} מתוך ${totalRounds}`;
-}
+function updateCharacterCard(type, characterName) {
+    const card = document.getElementById(`${type}-card`);
+    const avatarPlaceholder = card.querySelector('.character-avatar-placeholder');
+    const character = currentCharacters.find(c => c.name === characterName);
 
-// Continues the chat with more rounds
-function continueChat() {
-    if (!isChatRunning) {
-        isChatRunning = true;
-        continueChatBtn.disabled = true;
-        runChatRounds();
+    if (character && character.avatar) {
+        avatarPlaceholder.innerHTML = `<img src="${character.avatar}" alt="אווטאר של ${character.name}">`;
+    } else if (character) {
+        // Use initial letter as avatar if no image
+        avatarPlaceholder.textContent = character.name.charAt(0);
+        avatarPlaceholder.style.backgroundColor = getAvatarColor(character.name);
+        avatarPlaceholder.innerHTML = `<span style="font-size: 2.5rem; color: white;">${character.name.charAt(0)}</span>`;
     }
 }
 
-// Swaps the characters for the next round
-function swapCharacters() {
-    if (isChatRunning) return;
-    const temp = character1Select.value;
-    character1Select.value = character2Select.value;
-    character2Select.value = temp;
-    
-    const char1 = characters[character1Select.value];
-    const char2 = characters[character2Select.value];
-    chatHeader.innerHTML = `
-        <div><img src="avatars/${char1.avatar}" alt="${char1.name}"> ${char1.name}</div>
-        <div><img src="avatars/${char2.avatar}" alt="${char2.name}"> ${char2.name}</div>
-    `;
-    
-    alert('הדמויות הוחלפו. לחץ על "התחל שיחה" כדי להמשיך עם הדמויות החדשות.');
-}
-
-// Saves the conversation to a file
-function saveConversation() {
-    const format = prompt('באיזה פורמט לשמור? (txt/json)', 'txt');
-    
-    let content;
-    let filename;
-    
-    const char1 = characters[character1Select.value].name;
-    const char2 = characters[character2Select.value].name;
-    const topic = topicInput.value || 'שיחה';
-    
-    if (format && format.toLowerCase() === 'json') {
-        content = JSON.stringify(chatHistory, null, 2);
-        filename = `שיחה-${char1}-${char2}-${topic}.json`;
-        downloadFile(content, filename, 'application/json');
-    } else { // Default to TXT
-        content = chatHistory.map(msg => `${msg.character}: ${msg.text}`).join('\n\n');
-        filename = `שיחה-${char1}-${char2}-${topic}.txt`;
-        downloadFile(content, filename, 'text/plain');
+function getAvatarColor(name) {
+    const colors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4caf50', '#8bc34a', '#cddc39', '#ffeb3b', '#ffc107', '#ff9800', '#ff5722'];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
     }
-    
-    alert('השיחה נשמרה בהצלחה!');
+    const index = Math.abs(hash % colors.length);
+    return colors[index];
 }
 
-// Clears the current conversation
+function addMessageToChat(text, character, type) {
+    const chatMessage = document.createElement('div');
+    chatMessage.classList.add('chat-message', type);
+
+    const avatarDiv = document.createElement('div');
+    avatarDiv.classList.add('message-avatar');
+    if (character.avatar) {
+        avatarDiv.innerHTML = `<img src="${character.avatar}" alt="אווטאר של ${character.name}">`;
+    } else {
+        avatarDiv.style.backgroundColor = getAvatarColor(character.name);
+        avatarDiv.innerHTML = `<span style="font-size: 1.5rem; color: white;">${character.name.charAt(0)}</span>`;
+    }
+
+    const bubbleDiv = document.createElement('div');
+    bubbleDiv.classList.add('message-bubble', type);
+    
+    const headerDiv = document.createElement('div');
+    headerDiv.classList.add('message-header');
+    headerDiv.innerHTML = `<span class="message-name">${character.name}</span>`;
+
+    const textDiv = document.createElement('div');
+    textDiv.classList.add('message-text');
+    textDiv.textContent = text;
+    
+    bubbleDiv.appendChild(headerDiv);
+    bubbleDiv.appendChild(textDiv);
+    
+    chatMessage.appendChild(avatarDiv);
+    chatMessage.appendChild(bubbleDiv);
+
+    chatBox.appendChild(chatMessage);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
 function clearConversation() {
-    isChatRunning = false;
-    currentRound = 0;
-    chatHistory = [];
-    conversationArea.innerHTML = '<p class="system-message">בחר נושא ודמויות כדי להתחיל...</p>';
-    updateProgressBar();
-    chatContainer.classList.add('hidden');
-    continueChatBtn.disabled = false;
+    chatBox.innerHTML = '';
+    conversationRounds = 0;
+    currentRoundSpan.textContent = 0;
+    conversationDisplay.classList.add('hidden');
 }
 
-// Helper function to download a file
-function downloadFile(content, filename, type) {
-    const blob = new Blob([content], { type });
+async function runConversation() {
+    const topic = topicInput.value.trim();
+    const askerName = askerSelect.value;
+    const answererName = answererSelect.value;
+
+    const asker = currentCharacters.find(c => c.name === askerName);
+    const answerer = currentCharacters.find(c => c.name === answererName);
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    // Initial question from the asker
+    if (conversationRounds === 0) {
+        const initialPrompt = `${asker.prompt}. נושא השיחה: ${topic}. צור שאלה אקראית של 5-20 מילים בלבד שמתחילה את השיחה בנושא זה.`;
+        addMessageToChat('...חושב על שאלה...', asker, 'asker');
+        try {
+            const result = await model.generateContent(initialPrompt);
+            const question = result.response.text();
+            addMessageToChat(question, asker, 'asker');
+            
+            // First answer
+            await generateAndDisplayAnswer(question, asker, answerer, topic, model);
+        } catch (error) {
+            addMessageToChat('אירעה שגיאה. אנא ודא שהמפתח תקין ונסה שוב.', { name: 'מערכת', avatar: '' }, 'system');
+            console.error(error);
+        }
+    } else {
+        // Continue conversation based on the last message
+        const lastMessage = chatBox.lastElementChild.querySelector('.message-text').textContent;
+        await generateAndDisplayQuestion(lastMessage, asker, answerer, topic, model);
+    }
+}
+
+async function generateAndDisplayQuestion(lastAnswer, asker, answerer, topic, model) {
+    const questionPrompt = `${asker.prompt}. נושא השיחה: ${topic}. התשובה האחרונה של ${answerer.name} הייתה: "${lastAnswer}". צור שאלה אקראית של 5-20 מילים בלבד שממשיכה את השיחה בנושא. השאלה צריכה להיות בהקשר לתשובה האחרונה.`;
+    addMessageToChat('...חושב על שאלה...', asker, 'asker');
+    try {
+        const result = await model.generateContent(questionPrompt);
+        const question = result.response.text();
+        addMessageToChat(question, asker, 'asker');
+        await generateAndDisplayAnswer(question, asker, answerer, topic, model);
+    } catch (error) {
+        addMessageToChat('אירעה שגיאה. אנא ודא שהמפתח תקין ונסה שוב.', { name: 'מערכת', avatar: '' }, 'system');
+        console.error(error);
+    }
+}
+
+async function generateAndDisplayAnswer(question, asker, answerer, topic, model) {
+    const answerPrompt = `${answerer.prompt}. נושא השיחה: ${topic}. השאלה האחרונה של ${asker.name} היא: "${question}". ענה על השאלה בצורה תמציתית ובהתאם לדמותך.`;
+    addMessageToChat('...חושב על תשובה...', answerer, 'answerer');
+    
+    // Remove the temporary "thinking" message before adding the real one
+    const thinkingMessage = chatBox.lastElementChild;
+    if (thinkingMessage.classList.contains('answerer')) {
+        chatBox.removeChild(thinkingMessage);
+    }
+
+    try {
+        const result = await model.generateContent(answerPrompt);
+        const answer = result.response.text();
+        addMessageToChat(answer, answerer, 'answerer');
+        conversationRounds++;
+        currentRoundSpan.textContent = conversationRounds;
+        
+        if (conversationRounds < defaultRounds) {
+            await generateAndDisplayQuestion(answer, asker, answerer, topic, model);
+        }
+    } catch (error) {
+        addMessageToChat('אירעה שגיאה. אנא ודא שהמפתח תקין ונסה שוב.', { name: 'מערכת', avatar: '' }, 'system');
+        console.error(error);
+    }
+}
+
+function saveConversation() {
+    const chatMessages = chatBox.querySelectorAll('.chat-message');
+    const conversation = [];
+
+    chatMessages.forEach(msg => {
+        const characterName = msg.querySelector('.message-name').textContent;
+        const text = msg.querySelector('.message-text').textContent;
+        conversation.push({ name: characterName, text: text, timestamp: new Date().toISOString() });
+    });
+
+    const conversationJson = JSON.stringify(conversation, null, 2);
+    const blob = new Blob([conversationJson], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = filename;
+    a.download = `conversation_${new Date().getTime()}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
