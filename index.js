@@ -127,315 +127,46 @@ function renderHistoryList() {
         const item = historyItemTemplate.content.cloneNode(true).firstElementChild;
         item.dataset.chatId = chat.id;
         if(chat.favorite) item.classList.add('favorite');
-
         item.querySelector('.history-item-title').textContent = chat.topic || 'שיחה ללא נושא';
         item.querySelector('.history-item-date').textContent = new Date(chat.lastUpdated).toLocaleString('he-IL');
-        const lastMessage = chat.conversation[chat.conversation.length - 1];
-        item.querySelector('.history-item-preview').textContent = lastMessage ? `${lastMessage.character}: ${lastMessage.text.substring(0, 50)}...` : 'שיחה ריקה';
-        
-        // Event Listeners
-        item.querySelector('.history-item-main').addEventListener('click', () => loadChat(chat.id));
-        
-        const favBtn = item.querySelector('.favorite-btn');
-        if (chat.favorite) favBtn.classList.add('is-favorite');
-        favBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleFavorite(chat.id); });
-
-        const shareBtn = item.querySelector('.share-btn');
-        shareBtn.addEventListener('click', (e) => { e.stopPropagation(); shareChat(chat.id); });
-        
-        const deleteBtn = item.querySelector('.delete-btn');
-        deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteChat(chat.id); });
-
+        item.querySelector('.history-item-preview').textContent = chat.conversation.length > 0 ? `${chat.conversation[0].character}: ${chat.conversation[0].text.substring(0, 50)}${chat.conversation[0].text.length > 50 ? '...' : ''}` : 'ללא תוכן';
         historyList.appendChild(item);
     });
 }
 
-function loadChat(id) {
-    if (isGenerating) return;
-    const chats = getSavedChats();
-    const chat = chats.find(c => c.id === id);
-    if (!chat) {
-        alert('לא ניתן למצוא את השיחה.');
-        return;
-    }
-
-    isSharedChatView = false;
-    currentChatId = chat.id;
-    topicInput.value = chat.topic;
-    
-    // Set character selects and custom fields
-    const setCharacter = (role, details) => {
-        const select = role === 'questioner' ? questionerSelect : answererSelect;
-        const nameInput = role === 'questioner' ? customQuestionerName : customAnswererName;
-        const promptInput = role === 'questioner' ? customQuestionerSystemPrompt : customAnswererSystemPrompt;
-        select.value = details.id;
-        if(details.id === 'custom') {
-            nameInput.value = details.name;
-            promptInput.value = details.prompt;
-        }
-    };
-    setCharacter('questioner', chat.questioner);
-    setCharacter('answerer', chat.answerer);
-    handleCustomCharacterSelection();
-
-    // Render messages
-    chatContainer.innerHTML = '';
-    chat.conversation.forEach(msg => {
-        const characterDetails = msg.role === 'questioner' ? chat.questioner : chat.answerer;
-        addMessageToChat(characterDetails, msg.text, msg.role, false);
-    });
-
-    // Update state
-    const rounds = Math.ceil(chat.conversation.length / 2);
-    currentRound = rounds;
-    totalRounds = rounds;
-    updateProgress();
-    
-    chatSection.classList.remove('hidden');
-    continueChatBtn.classList.remove('hidden');
-    clearChatBtn.textContent = 'שיחה חדשה';
-    setGeneratingState(false);
-    toggleHistoryPanel(false); // Close panel
-}
-
-function deleteChat(id) {
-    if (!confirm('האם אתה בטוח שברצונך למחוק את השיחה הזו לצמיתות?')) return;
-    let chats = getSavedChats();
-    chats = chats.filter(c => c.id !== id);
-    saveChats(chats);
-    
-    if (currentChatId === id) {
-        clearConversation(true);
-    }
-    renderHistoryList();
-}
-
-function toggleFavorite(id) {
-    let chats = getSavedChats();
-    const chatIndex = chats.findIndex(c => c.id === id);
-    if (chatIndex > -1) {
-        chats[chatIndex].favorite = !chats[chatIndex].favorite;
-        saveChats(chats);
-        renderHistoryList();
-    }
-}
-
-function shareChat(id) {
-    const chats = getSavedChats();
-    const chat = chats.find(c => c.id === id);
-    if (!chat) return;
-
-    try {
-        const dataToShare = {
-            v: 1, // version
-            topic: chat.topic,
-            q: chat.questioner,
-            a: chat.answerer,
-            h: chat.conversation
-        };
-        const jsonString = JSON.stringify(dataToShare);
-        const encoded = btoa(encodeURIComponent(jsonString));
-        const url = `${window.location.origin}${window.location.pathname}?chat=${encoded}`;
-        
-        navigator.clipboard.writeText(url).then(() => {
-            alert('קישור לשיחה הועתק!');
-        }, () => {
-            alert('לא ניתן היה להעתיק את הקישור.');
-        });
-    } catch (e) {
-        console.error("Sharing error:", e);
-        alert('אירעה שגיאה בעת יצירת הקישור.');
-    }
-}
-
-function loadSharedChat() {
-    const params = new URLSearchParams(window.location.search);
-    const sharedData = params.get('chat');
-    if (!sharedData) return false;
-
-    try {
-        const decoded = decodeURIComponent(atob(sharedData));
-        const data = JSON.parse(decoded);
-
-        isSharedChatView = true;
-        // Basically call loadChat with the shared data, but disable controls
-        topicInput.value = data.topic;
-        topicInput.disabled = true;
-
-        const setCharacter = (role, details) => {
-            const select = role === 'questioner' ? questionerSelect : answererSelect;
-            select.innerHTML = `<option>${details.emoji} ${details.name}</option>`;
-            select.disabled = true;
-        };
-        setCharacter('questioner', data.q);
-        setCharacter('answerer', data.a);
-        
-        chatContainer.innerHTML = '';
-        data.h.forEach(msg => {
-            const characterDetails = msg.role === 'questioner' ? data.q : data.a;
-            addMessageToChat(characterDetails, msg.text, msg.role, false);
-        });
-
-        // Disable all setup and controls
-        setGeneratingState(true);
-        startChatBtn.classList.add('hidden');
-        continueChatBtn.classList.add('hidden');
-        clearChatBtn.textContent = 'חזור למצב רגיל';
-        clearChatBtn.disabled = false;
-        clearChatBtn.onclick = () => { window.location.href = window.location.origin + window.location.pathname; };
-        
-        chatSection.classList.remove('hidden');
-        setupSection.classList.add('hidden'); // Hide setup completely
-        return true;
-
-    } catch (e) {
-        console.error("Error loading shared chat:", e);
-        alert('הקישור המשותף אינו תקין.');
-        window.history.replaceState({}, document.title, window.location.pathname);
-        return false;
-    }
-}
-
-// --- Core App Logic ---
-
-function populateCharacterSelects() {
-    [questionerSelect, answererSelect].forEach(select => {
-        select.innerHTML = '';
-        for (const id in characters) {
-            const option = document.createElement('option');
-            option.value = id;
-            option.textContent = `${characters[id].emoji} ${characters[id].name}`;
-            select.appendChild(option);
-        }
-    });
-    questionerSelect.value = 'soldier';
-    answererSelect.value = 'psychologist';
+// --- Character Management ---
+function getCharacterDetails(type) {
+    const select = type === 'questioner' ? questionerSelect : answererSelect;
+    const customName = type === 'questioner' ? customQuestionerName : customAnswererName;
+    const customPrompt = type === 'questioner' ? customQuestionerSystemPrompt : customAnswererSystemPrompt;
+    const isCustom = select.value === 'custom';
+    return isCustom ? {
+        name: customName.value || characters['custom'].name,
+        emoji: characters['custom'].emoji,
+        prompt: customPrompt.value || characters['custom'].prompt
+    } : characters[select.value];
 }
 
 function handleCustomCharacterSelection() {
-    customQuestionerPrompt.classList.toggle('hidden', questionerSelect.value !== 'custom');
-    customAnswererPrompt.classList.toggle('hidden', answererSelect.value !== 'custom');
+    const isQuestionerCustom = questionerSelect.value === 'custom';
+    const isAnswererCustom = answererSelect.value === 'custom';
+    customQuestionerPrompt.classList.toggle('hidden', !isQuestionerCustom);
+    customAnswererPrompt.classList.toggle('hidden', !isAnswererCustom);
 }
+questionerSelect.addEventListener('change', handleCustomCharacterSelection);
+answererSelect.addEventListener('change', handleCustomCharacterSelection);
 
-function toggleHistoryPanel(show) {
-    const isOpen = show === undefined ? !historyPanel.classList.contains('open') : show;
-    historyPanel.classList.toggle('open', isOpen);
-    historyPanelOverlay.classList.toggle('hidden', !isOpen);
-    document.body.classList.toggle('history-open', isOpen);
-}
-
-function init() {
-    if(loadSharedChat()) return; // Stop normal init if shared chat is loaded
-
-    populateCharacterSelects();
-    renderHistoryList();
-    const savedApiKey = localStorage.getItem('gemini_api_key');
-    if (savedApiKey) {
-        validateAndSetApiKey(savedApiKey, true);
-    } else {
-        apiKeyModal.classList.add('show');
-        mainContent.classList.add('hidden');
-    }
-
-    // Event Listeners
-    validateApiKeyBtn.addEventListener('click', () => {
-        const key = apiKeyInput.value.trim();
-        if (key) {
-            validateAndSetApiKey(key, false);
-        } else {
-            apiKeyStatus.textContent = 'אנא הכנס מפתח API.';
-            apiKeyStatus.className = 'status-message error';
-        }
-    });
-    
-    editApiKeyBtn.addEventListener('click', openApiKeyModal);
-    openHistoryBtn.addEventListener('click', () => toggleHistoryPanel(true));
-    closeHistoryBtn.addEventListener('click', () => toggleHistoryPanel(false));
-    historyPanelOverlay.addEventListener('click', () => toggleHistoryPanel(false));
-
-    questionerSelect.addEventListener('change', handleCustomCharacterSelection);
-    answererSelect.addEventListener('change', handleCustomCharacterSelection);
-    startChatBtn.addEventListener('click', startNewConversation);
-    continueChatBtn.addEventListener('click', () => runConversation(5));
-    swapCharactersBtn.addEventListener('click', swapCharacters);
-    clearChatBtn.addEventListener('click', () => clearConversation(true));
-    
-    saveTxtBtn.addEventListener('click', (e) => { e.preventDefault(); exportConversation('txt'); });
-    saveJsonBtn.addEventListener('click', (e) => { e.preventDefault(); exportConversation('json'); });
-    savePngBtn.addEventListener('click', (e) => { e.preventDefault(); exportConversation('png'); });
-}
-
-function openApiKeyModal() {
-    apiKeyStatus.textContent = 'ניתן לעדכן את המפתח השמור או להכניס חדש.';
-    apiKeyStatus.className = 'status-message';
-    const currentKey = localStorage.getItem('gemini_api_key');
-    if (currentKey) {
-        apiKeyInput.value = currentKey;
-    }
-    apiKeyModal.classList.add('show');
-}
-
-async function validateAndSetApiKey(key, isInitialLoad = false) {
-    apiKeyStatus.textContent = 'מאמת מפתח...';
-    apiKeyStatus.className = 'status-message';
-    validateApiKeyBtn.disabled = true;
-
-    try {
-        const testAi = new GoogleGenAI({ apiKey: key });
-        await testAi.models.generateContent({ model: MODEL_NAME, contents: [{ parts: [{ text: 'test' }] }]});
-        
-        localStorage.setItem('gemini_api_key', key);
-        ai = new GoogleGenAI({ apiKey: key });
-        apiKeyStatus.textContent = 'המפתח תקין ואושר!';
-        apiKeyStatus.className = 'status-message success';
-        setTimeout(() => {
-            apiKeyModal.classList.remove('show');
-            mainContent.classList.remove('hidden');
-        }, 1000);
-
-    } catch (error) {
-        console.error("API Key Validation Error:", error);
-        apiKeyStatus.textContent = 'המפתח אינו תקין או שהייתה שגיאת רשת.';
-        apiKeyStatus.className = 'status-message error';
-        localStorage.removeItem('gemini_api_key');
-        if (!isInitialLoad) {
-            mainContent.classList.add('hidden');
-            apiKeyModal.classList.add('show');
-        }
-    } finally {
-        validateApiKeyBtn.disabled = false;
-    }
-}
-
-function getCharacterDetails(role) {
-    const select = role === 'questioner' ? questionerSelect : answererSelect;
-    const id = select.value;
-    const emoji = select.options[select.selectedIndex].text.split(' ')[0];
-    if (id === 'custom') {
-        const nameInput = role === 'questioner' ? customQuestionerName : customAnswererName;
-        const promptInput = role === 'questioner' ? customQuestionerSystemPrompt : customAnswererSystemPrompt;
-        const name = nameInput.value.trim() || `דמות מותאמת אישית ${role === 'questioner' ? '1' : '2'}`;
-        return {
-            id: 'custom',
-            name: name,
-            prompt: promptInput.value.trim(),
-            emoji: characters.custom.emoji
-        }
-    }
-    return { ...characters[id], id, emoji };
-}
-
-function startNewConversation() {
-    if (isGenerating) return;
-
+// --- Chat Management ---
+function startNewChat() {
+    if (isGenerating || isSharedChatView) return;
     const topic = topicInput.value.trim();
     if (!topic) {
-        alert('אנא הכנס נושא לשיחה.');
+        alert('אנא ודא שהגדרת נושא לשיחה.');
         return;
     }
-
-    clearConversation(false); // Don't hide the chat section yet
-    currentChatId = Date.now(); // Create a new ID for the new chat
+    
+    currentChatId = Date.now().toString();
+    setupSection.classList.add('hidden');
     chatSection.classList.remove('hidden');
     chatTitle.textContent = `שיחה על: ${topic}`;
     runConversation(5);
@@ -481,7 +212,7 @@ function removeThinkingIndicator() {
 }
 
 async function runConversation(rounds) {
-    if (isGenerating || isSharedChatView) return;
+    if (isGenerating || isSharedChatView || !ai) return;
     
     const topic = topicInput.value.trim();
     if (!topic) {
@@ -512,8 +243,8 @@ async function runConversation(rounds) {
                 questionerPrompt = `You are ${questioner.name}. Your persona is: "${questioner.prompt}". You are in a conversation in Hebrew with ${answerer.name} about "${topic}". Here is the conversation so far:\n\n${currentHistoryForPrompt}\n\nBased on the last response from ${answerer.name}, ask a natural, relevant follow-up question (5-20 words) in Hebrew to continue the dialogue. Your question should be short and to the point.`;
             }
 
-            let questionResponse = await ai.models.generateContent({ model: MODEL_NAME, contents: questionerPrompt });
-            const question = questionResponse.text.trim();
+            let questionResponse = await ai.generateContent({ model: MODEL_NAME, prompt: questionerPrompt });
+            const question = questionResponse.candidates[0].content.parts[0].text.trim();
             removeThinkingIndicator();
             addMessageToChat(questioner, question, 'questioner');
 
@@ -527,12 +258,12 @@ async function runConversation(rounds) {
                 parts: [{ text: msg.text }]
             }));
 
-            const answerResponse = await ai.models.generateContent({
+            const answerResponse = await ai.generateContent({
                 model: MODEL_NAME,
-                contents: apiHistoryForAnswerer,
-                config: { systemInstruction: answererSystemInstruction }
+                prompt: apiHistoryForAnswerer,
+                systemInstruction: answererSystemInstruction
             });
-            const answer = answerResponse.text.trim();
+            const answer = answerResponse.candidates[0].content.parts[0].text.trim();
             removeThinkingIndicator();
             addMessageToChat(answerer, answer, 'answerer');
 
@@ -620,7 +351,7 @@ function exportConversation(format) {
     } else if (format === 'png') {
         html2canvas(document.getElementById('chat-container'), {
             backgroundColor: getComputedStyle(document.body).getPropertyValue('--background-color'),
-            useCORS: true,
+            useCsp: true,
             scale: 1.5,
         }).then(canvas => {
             downloadFile(filename + '.png', canvas.toDataURL('image/png'), 'image/png', true);
@@ -644,6 +375,98 @@ function downloadFile(filename, content, mimeType, isDataUrl = false) {
     a.click();
     document.body.removeChild(a);
     if(!isDataUrl) URL.revokeObjectURL(a.href);
+}
+
+// --- API Initialization ---
+function init() {
+    const savedApiKey = localStorage.getItem('gemini_api_key');
+    if (savedApiKey) {
+        apiKeyInput.value = savedApiKey;
+        validateApiKey();
+    } else {
+        apiKeyModal.classList.add('show');
+    }
+
+    startChatBtn.addEventListener('click', startNewChat);
+    validateApiKeyBtn.addEventListener('click', validateApiKey);
+    editApiKeyBtn.addEventListener('click', () => apiKeyModal.classList.add('show'));
+    openHistoryBtn.addEventListener('click', () => {
+        historyPanel.classList.add('open');
+        historyPanelOverlay.classList.remove('hidden');
+        document.body.classList.add('history-open');
+    });
+    closeHistoryBtn.addEventListener('click', () => {
+        historyPanel.classList.remove('open');
+        historyPanelOverlay.classList.add('hidden');
+        document.body.classList.remove('history-open');
+    });
+    continueChatBtn.addEventListener('click', () => runConversation(5));
+    saveTxtBtn.addEventListener('click', () => exportConversation('txt'));
+    saveJsonBtn.addEventListener('click', () => exportConversation('json'));
+    savePngBtn.addEventListener('click', () => exportConversation('png'));
+    clearChatBtn.addEventListener('click', clearConversation);
+    historyPanelOverlay.addEventListener('click', () => {
+        historyPanel.classList.remove('open');
+        historyPanelOverlay.classList.add('hidden');
+        document.body.classList.remove('history-open');
+    });
+    historyList.addEventListener('click', (e) => {
+        const item = e.target.closest('.history-item');
+        if (item) {
+            const chatId = item.dataset.chatId;
+            loadChat(chatId);
+        }
+    });
+}
+
+async function validateApiKey() {
+    const apiKey = apiKeyInput.value.trim();
+    if (!apiKey) {
+        apiKeyStatus.textContent = 'אנא הכנס מפתח API.';
+        apiKeyStatus.classList.add('error');
+        return;
+    }
+
+    try {
+        ai = new GoogleGenAI({ apiKey });
+        const response = await ai.generateContent({ model: MODEL_NAME, prompt: 'Test' });
+        if (response) {
+            apiKeyStatus.textContent = 'המפתח תקין! ניתן להתחיל.';
+            apiKeyStatus.classList.remove('error');
+            apiKeyStatus.classList.add('success');
+            localStorage.setItem('gemini_api_key', apiKey);
+            apiKeyModal.classList.remove('show');
+            mainContent.classList.remove('hidden');
+            renderHistoryList();
+        }
+    } catch (error) {
+        apiKeyStatus.textContent = 'מפתח API שגוי או חיבור אינטרנט חלש.';
+        apiKeyStatus.classList.add('error');
+        console.error('API Key validation failed:', error);
+    }
+}
+
+function loadChat(chatId) {
+    const chat = getSavedChats().find(c => c.id === chatId);
+    if (chat) {
+        currentChatId = chatId;
+        topicInput.value = chat.topic;
+        chatSection.classList.remove('hidden');
+        setupSection.classList.add('hidden');
+        chatTitle.textContent = `שיחה על: ${chat.topic}`;
+        chatContainer.innerHTML = '';
+        chat.conversation.forEach(msg => {
+            const character = msg.role === 'questioner' ? chat.questioner : chat.answerer;
+            addMessageToChat(character, msg.text, msg.role, false);
+        });
+        currentRound = chat.conversation.length / 2;
+        totalRounds = currentRound;
+        updateProgress();
+        continueChatBtn.classList.remove('hidden');
+        historyPanel.classList.remove('open');
+        historyPanelOverlay.classList.add('hidden');
+        document.body.classList.remove('history-open');
+    }
 }
 
 // --- App Start ---
