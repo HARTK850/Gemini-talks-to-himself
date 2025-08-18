@@ -134,7 +134,7 @@ function renderHistoryList() {
         const lastMessage = chat.conversation[chat.conversation.length - 1];
   item.querySelector('.history-item-preview').textContent = lastMessage ? ${lastMessage.character}: ${lastMessage.text.substring(0, 50)}... : 'שיחה ריקה';
 
-        
+    
         // Event Listeners
         item.querySelector('.history-item-main').addEventListener('click', () => loadChat(chat.id));
         
