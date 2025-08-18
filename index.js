@@ -381,13 +381,12 @@ async function validateAndSetApiKey(key, isInitialLoad = false) {
     validateApiKeyBtn.disabled = true;
 
     try {
-        // Corrected initialization for the genai package
         const testAi = new GoogleGenAI(key);
         const model = testAi.getGenerativeModel({ model: MODEL_NAME });
         await model.generateContent("test");
         
         localStorage.setItem('gemini_api_key', key);
-        ai = testAi; // Use the already initialized instance
+        ai = testAi;
         apiKeyStatus.textContent = 'המפתח תקין ואושר!';
         apiKeyStatus.className = 'status-message success';
         setTimeout(() => {
@@ -516,7 +515,6 @@ async function runConversation(rounds, newTopic = null) {
                 questionerPrompt = You are ${questioner.name}. Your persona is: "${questioner.prompt}". You are in a conversation in Hebrew with ${answerer.name} about "${topic}". Here is the conversation so far:\n\n${currentHistoryForPrompt}\n\nBased on the last response from ${answerer.name}, ask a natural, relevant follow-up question (5-20 words) in Hebrew to continue the dialogue. Your question should be short and to the point.;
             }
 
-            // Corrected way to call the model
             const model = ai.getGenerativeModel({ model: MODEL_NAME });
             let questionResponse = await model.generateContent(questionerPrompt);
             const question = questionResponse.response.text().trim();
@@ -526,19 +524,18 @@ async function runConversation(rounds, newTopic = null) {
             // --- Generate Answer ---
             const newHistoryForAnswerer = (getSavedChats().find(c => c.id === currentChatId)?.conversation || []);
             showThinkingIndicator(answerer, 'answerer');
-            const answererSystemInstruction = You are ${answerer.name}. Your persona is: "${answerer.prompt}". You are having a conversation in Hebrew with ${questioner.name} about "${topic}". Your response must be in Hebrew. Be true to your character and respond directly to the last question.;
             
             const apiHistoryForAnswerer = newHistoryForAnswerer.map(msg => ({
                 role: msg.role === 'questioner' ? 'user' : 'model',
                 parts: [{ text: msg.text }]
             }));
-
-             const chatSession = model.startChat({
-                history: apiHistoryForAnswerer,
-                generationConfig: { systemInstruction: answererSystemInstruction }
-             });
             
-            const answerResponse = await chatSession.sendMessage(question); // Send only the latest question
+            const chatSession = model.startChat({ 
+                history: apiHistoryForAnswerer,
+                systemInstruction: You are ${answerer.name}. Your persona is: "${answerer.prompt}". You are having a conversation in Hebrew with ${questioner.name} about "${topic}". Your response must be in Hebrew. Be true to your character and respond directly to the last question.
+            });
+            
+            const answerResponse = await chatSession.sendMessage(question);
             const answer = answerResponse.response.text().trim();
             removeThinkingIndicator();
             addMessageToChat(answerer, answer, 'answerer');
