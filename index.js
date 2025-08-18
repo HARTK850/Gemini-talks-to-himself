@@ -132,8 +132,7 @@ function renderHistoryList() {
         item.querySelector('.history-item-title').textContent = chat.topic || 'שיחה ללא נושא';
         item.querySelector('.history-item-date').textContent = new Date(chat.lastUpdated).toLocaleString('he-IL');
         const lastMessage = chat.conversation[chat.conversation.length - 1];
-// התיקון:
-item.querySelector('.history-item-preview').textContent = lastMessage ?  ${lastMessage.character}: ${lastMessage.text.substring(0, 50)}... : 'שיחה ריקה';
+item.querySelector('.history-item-preview').textContent = lastMessage ?  ${lastMessage.character}: ${lastMessage.text.substring(0, 50)}: 'שיחה ריקה';
     
         // Event Listeners
         item.querySelector('.history-item-main').addEventListener('click', () => loadChat(chat.id));
