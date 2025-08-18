@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai"; // <<< ייבוא הספרייה המעודכנת
 
 // --- DOM Elements ---
 const app = document.getElementById('app');
@@ -47,7 +47,7 @@ const clearChatBtn = document.getElementById('clear-chat-btn');
 
 
 // --- State ---
-let ai;
+let ai; // המשתנה ai יחזיק כעת מופע של GoogleGenerativeAI
 let currentChatId = null;
 let currentRound = 0;
 let totalRounds = 0;
@@ -115,7 +115,6 @@ function addOrUpdateCurrentChat(conversationHistory) {
 
 function renderHistoryList() {
     let chats = getSavedChats();
-    // Sort by favorite, then by date
     chats.sort((a, b) => (b.favorite - a.favorite) || (b.lastUpdated - a.lastUpdated));
     historyList.innerHTML = '';
     if(chats.length === 0){
@@ -131,10 +130,8 @@ function renderHistoryList() {
         item.querySelector('.history-item-title').textContent = chat.topic || 'שיחה ללא נושא';
         item.querySelector('.history-item-date').textContent = new Date(chat.lastUpdated).toLocaleString('he-IL');
         const lastMessage = chat.conversation[chat.conversation.length - 1];
-        // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
-        item.querySelector('.history-item-preview').textContent = lastMessage ? lastMessage.character + ': ' + lastMessage.text.substring(0, 50) + '...' : 'שיחה ריקה';
+        item.querySelector('.history-item-preview').textContent = lastMessage ? ${lastMessage.character}: ${lastMessage.text.substring(0, 50)}... : 'שיחה ריקה';
         
-        // Event Listeners
         item.querySelector('.history-item-main').addEventListener('click', () => loadChat(chat.id));
         
         const favBtn = item.querySelector('.favorite-btn');
@@ -164,7 +161,6 @@ function loadChat(id) {
     currentChatId = chat.id;
     topicInput.value = chat.topic;
     
-    // Set character selects and custom fields
     const setCharacter = (role, details) => {
         const select = role === 'questioner' ? questionerSelect : answererSelect;
         const nameInput = role === 'questioner' ? customQuestionerName : customAnswererName;
@@ -179,14 +175,12 @@ function loadChat(id) {
     setCharacter('answerer', chat.answerer);
     handleCustomCharacterSelection();
 
-    // Render messages
     chatContainer.innerHTML = '';
     chat.conversation.forEach(msg => {
         const characterDetails = msg.role === 'questioner' ? chat.questioner : chat.answerer;
         addMessageToChat(characterDetails, msg.text, msg.role, false);
     });
 
-    // Update state
     const rounds = Math.ceil(chat.conversation.length / 2);
     currentRound = rounds;
     totalRounds = rounds;
@@ -196,7 +190,7 @@ function loadChat(id) {
     continueChatBtn.classList.remove('hidden');
     clearChatBtn.textContent = 'שיחה חדשה';
     setGeneratingState(false);
-    toggleHistoryPanel(false); // Close panel
+    toggleHistoryPanel(false);
 }
 
 function deleteChat(id) {
@@ -227,26 +221,19 @@ function shareChat(id) {
     if (!chat) return;
 
     try {
-        const dataToShare = {
-            v: 1, // version
-            topic: chat.topic,
-            q: chat.questioner,
-            a: chat.answerer,
-            h: chat.conversation
-        };
+        const dataToShare = { v: 1, topic: chat.topic, q: chat.questioner, a: chat.answerer, h: chat.conversation };
         const jsonString = JSON.stringify(dataToShare);
         const encoded = btoa(encodeURIComponent(jsonString));
-        // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
-        const url = window.location.origin + window.location.pathname + '?chat=' + encoded;
+        const url = ${window.location.origin}${window.location.pathname}?chat=${encoded};
         
         navigator.clipboard.writeText(url).then(() => {
-            alert('קישור לשיחה הועתק!');
+            alert('קישור לשיחה הועתק! 🔗');
         }, () => {
-            alert('לא ניתן היה להעתיק את הקישור.');
+            alert('לא ניתן היה להעתיק את הקישור. 🙁');
         });
     } catch (e) {
         console.error("Sharing error:", e);
-        alert('אירעה שגיאה בעת יצירת הקישור.');
+        alert('אירעה שגיאה בעת יצירת הקישור. 😔');
     }
 }
 
@@ -260,14 +247,12 @@ function loadSharedChat() {
         const data = JSON.parse(decoded);
 
         isSharedChatView = true;
-        // Basically call loadChat with the shared data, but disable controls
         topicInput.value = data.topic;
         topicInput.disabled = true;
 
         const setCharacter = (role, details) => {
             const select = role === 'questioner' ? questionerSelect : answererSelect;
-            // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
-            select.innerHTML = '<option>' + details.emoji + ' ' + details.name + '</option>';
+            select.innerHTML = <option>${details.emoji} ${details.name}</option>;
             select.disabled = true;
         };
         setCharacter('questioner', data.q);
@@ -279,7 +264,6 @@ function loadSharedChat() {
             addMessageToChat(characterDetails, msg.text, msg.role, false);
         });
 
-        // Disable all setup and controls
         setGeneratingState(true);
         startChatBtn.classList.add('hidden');
         continueChatBtn.classList.add('hidden');
@@ -288,12 +272,12 @@ function loadSharedChat() {
         clearChatBtn.onclick = () => { window.location.href = window.location.origin + window.location.pathname; };
         
         chatSection.classList.remove('hidden');
-        setupSection.classList.add('hidden'); // Hide setup completely
+        setupSection.classList.add('hidden');
         return true;
 
     } catch (e) {
         console.error("Error loading shared chat:", e);
-        alert('הקישור המשותף אינו תקין.');
+        alert('הקישור המשותף אינו תקין. ⚠️');
         window.history.replaceState({}, document.title, window.location.pathname);
         return false;
     }
@@ -307,8 +291,7 @@ function populateCharacterSelects() {
         for (const id in characters) {
             const option = document.createElement('option');
             option.value = id;
-            // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
-            option.textContent = characters[id].emoji + ' ' + characters[id].name;
+            option.textContent = ${characters[id].emoji} ${characters[id].name};
             select.appendChild(option);
         }
     });
@@ -329,7 +312,7 @@ function toggleHistoryPanel(show) {
 }
 
 function init() {
-    if(loadSharedChat()) return; // Stop normal init if shared chat is loaded
+    if(loadSharedChat()) return;
 
     populateCharacterSelects();
     renderHistoryList();
@@ -341,13 +324,12 @@ function init() {
         mainContent.classList.add('hidden');
     }
 
-    // Event Listeners
     validateApiKeyBtn.addEventListener('click', () => {
         const key = apiKeyInput.value.trim();
         if (key) {
             validateAndSetApiKey(key, false);
         } else {
-            apiKeyStatus.textContent = 'אנא הכנס מפתח API.';
+            apiKeyStatus.textContent = 'אנא הכנס מפתח API. 🔑';
             apiKeyStatus.className = 'status-message error';
         }
     });
@@ -370,7 +352,7 @@ function init() {
 }
 
 function openApiKeyModal() {
-    apiKeyStatus.textContent = 'ניתן לעדכן את המפתח השמור או להכניס חדש.';
+    apiKeyStatus.textContent = 'ניתן לעדכן את המפתח השמור או להכניס חדש. ✏️';
     apiKeyStatus.className = 'status-message';
     const currentKey = localStorage.getItem('gemini_api_key');
     if (currentKey) {
@@ -380,18 +362,21 @@ function openApiKeyModal() {
 }
 
 async function validateAndSetApiKey(key, isInitialLoad = false) {
-    apiKeyStatus.textContent = 'מאמת מפתח...';
+    apiKeyStatus.textContent = 'מאמת מפתח... ⏳';
     apiKeyStatus.className = 'status-message';
     validateApiKeyBtn.disabled = true;
 
     try {
-        const testAi = new GoogleGenAI(key);
+        // שימוש במחלקה המעודכנת GoogleGenerativeAI
+        const testAi = new GoogleGenerativeAI(key);
         const model = testAi.getGenerativeModel({ model: MODEL_NAME });
-        await model.generateContent("test");
+        
+        // קריאת בדיקה אמינה ל-API
+        await model.generateContent("ping");
         
         localStorage.setItem('gemini_api_key', key);
         ai = testAi;
-        apiKeyStatus.textContent = 'המפתח תקין ואושר!';
+        apiKeyStatus.textContent = 'המפתח תקין ואושר! 🎉';
         apiKeyStatus.className = 'status-message success';
         setTimeout(() => {
             apiKeyModal.classList.remove('show');
@@ -400,7 +385,7 @@ async function validateAndSetApiKey(key, isInitialLoad = false) {
 
     } catch (error) {
         console.error("API Key Validation Error:", error);
-        apiKeyStatus.textContent = 'המפתח אינו תקין או שהייתה שגיאת רשת.';
+        apiKeyStatus.textContent = 'המפתח אינו תקין או שהייתה שגיאת רשת. 🙁';
         apiKeyStatus.className = 'status-message error';
         localStorage.removeItem('gemini_api_key');
         if (!isInitialLoad) {
@@ -419,14 +404,8 @@ function getCharacterDetails(role) {
     if (id === 'custom') {
         const nameInput = role === 'questioner' ? customQuestionerName : customAnswererName;
         const promptInput = role === 'questioner' ? customQuestionerSystemPrompt : customAnswererSystemPrompt;
-        // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
-        const name = nameInput.value.trim() || 'דמות מותאמת אישית ' + (role === 'questioner' ? '1' : '2');
-        return {
-            id: 'custom',
-            name: name,
-            prompt: promptInput.value.trim(),
-            emoji: characters.custom.emoji
-        }
+        const name = nameInput.value.trim() || דמות מותאמת אישית ${role === 'questioner' ? '1' : '2'};
+        return { id: 'custom', name: name, prompt: promptInput.value.trim(), emoji: characters.custom.emoji };
     }
     return { ...characters[id], id, emoji };
 }
@@ -436,49 +415,37 @@ function startNewConversation() {
 
     const topic = topicInput.value.trim();
     if (!topic) {
-        alert('אנא הכנס נושא לשיחה.');
+        alert('אנא הכנס נושא לשיחה. 💬');
         return;
     }
 
-    clearConversation(false); // Don't hide the chat section yet
-    currentChatId = Date.now(); // Create a new ID for the new chat
+    clearConversation(false);
+    currentChatId = Date.now();
     chatSection.classList.remove('hidden');
-    // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
-    chatTitle.textContent = 'שיחה על: ' + topic;
-    runConversation(5, topic); // העברת הנושא ישירות לפונקציה
+    chatTitle.textContent = שיחה על: ${topic};
+    runConversation(5, topic);
 }
 
 function addMessageToChat(character, text, role, shouldAddToHistory = true) {
     const messageElement = messageTemplate.content.cloneNode(true).firstElementChild;
     messageElement.classList.add(role);
     
-    const avatar = messageElement.querySelector('.avatar');
-    avatar.textContent = character.emoji;
-    
-    // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
-    const authorName = character.name; // אין צורך בשרשור אם זה רק שם
-    messageElement.querySelector('.message-author').textContent = authorName;
-    
-    const textElement = messageElement.querySelector('.message-text');
-    textElement.innerHTML = text; // Use innerHTML to support thinking indicator
+    messageElement.querySelector('.avatar').textContent = character.emoji;
+    messageElement.querySelector('.message-author').textContent = ${character.name};
+    messageElement.querySelector('.message-text').innerHTML = text;
 
     chatContainer.appendChild(messageElement);
     chatContainer.scrollTop = chatContainer.scrollHeight;
     
     if (shouldAddToHistory && !text.includes('thinking-indicator')) {
         const currentHistory = getSavedChats().find(c => c.id === currentChatId)?.conversation || [];
-        const newHistory = [...currentHistory, {
-            character: character.name,
-            role,
-            text: text.replace(/<[^>]*>/g, '') // Clean text
-        }];
+        const newHistory = [...currentHistory, { character: character.name, role, text: text.replace(/<[^>]*>/g, '') }];
         addOrUpdateCurrentChat(newHistory);
     }
 }
 
 function showThinkingIndicator(character, role) {
-    // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
-    const thinkingHTML = '<div class="thinking-indicator"><div class="dot-flashing"></div></div>';
+    const thinkingHTML = <div class="thinking-indicator"><div class="dot-flashing"></div></div>;
     addMessageToChat(character, thinkingHTML, role, false);
 }
 
@@ -494,7 +461,7 @@ async function runConversation(rounds, newTopic = null) {
     
     const topic = newTopic || topicInput.value.trim();
     if (!topic) {
-        alert('אנא ודא שהגדרת נושא לשיחה.');
+        alert('אנא ודא שהגדרת נושא לשיחה. 📝');
         return;
     }
     
@@ -509,51 +476,42 @@ async function runConversation(rounds, newTopic = null) {
         currentRound++;
         updateProgress();
 
-        // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
-        const currentHistoryForPrompt = (getSavedChats().find(c => c.id === currentChatId)?.conversation || [])
-                                      .map(msg => msg.character + ': ' + msg.text).join('\n');
+        const currentHistory = getSavedChats().find(c => c.id === currentChatId)?.conversation || [];
         
         try {
+            // --- Generate Question ---
             showThinkingIndicator(questioner, 'questioner');
-            let questionerPrompt;
-            if (currentHistoryForPrompt.length === 0) {
-                // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
-                questionerPrompt = 'You are ' + questioner.name + '. Your persona is: "' + questioner.prompt + '". You are about to have a conversation in Hebrew with ' + answerer.name + ', whose persona is: "' + answerer.prompt + '". The topic is "' + topic + '". Please generate a creative, short opening question (5-20 words) in Hebrew to start the conversation.';
-            } else {
-                // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
-                questionerPrompt = 'You are ' + questioner.name + '. Your persona is: "' + questioner.prompt + '". You are in a conversation in Hebrew with ' + answerer.name + ' about "' + topic + '". Here is the conversation so far:\n\n' + currentHistoryForPrompt + '\n\nBased on the last response from ' + answerer.name + ', ask a natural, relevant follow-up question (5-20 words) in Hebrew to continue the dialogue. Your question should be short and to the point.';
-            }
-
-            const model = ai.getGenerativeModel({ model: MODEL_NAME });
-            let questionResponse = await model.generateContent(questionerPrompt);
-            const question = questionResponse.response.text().trim();
+            const questionerModel = ai.getGenerativeModel({ 
+                model: MODEL_NAME,
+                systemInstruction: You are ${questioner.name}. Your persona is: "${questioner.prompt}". You are in a conversation in Hebrew with ${answerer.name} about "${topic}". Your goal is to ask a natural, relevant follow-up question (5-20 words) in Hebrew to continue the dialogue. If this is the first turn, ask a creative opening question.
+            });
+            const questionerChat = questionerModel.startChat({
+                history: currentHistory.map(msg => ({ role: msg.role === 'questioner' ? 'user' : 'model', parts: [{ text: msg.text }] }))
+            });
+            const questionResult = await questionerChat.sendMessage("Ask your next question based on the conversation history.");
+            const question = questionResult.response.text().trim();
             removeThinkingIndicator();
             addMessageToChat(questioner, question, 'questioner');
 
             // --- Generate Answer ---
-            const newHistoryForAnswerer = (getSavedChats().find(c => c.id === currentChatId)?.conversation || []);
+            const updatedHistoryForAnswerer = [...currentHistory, { character: questioner.name, role: 'questioner', text: question }];
             showThinkingIndicator(answerer, 'answerer');
-            
-            const apiHistoryForAnswerer = newHistoryForAnswerer.map(msg => ({
-                role: msg.role === 'questioner' ? 'user' : 'model',
-                parts: [{ text: msg.text }]
-            }));
-            
-            const chatSession = model.startChat({ 
-                history: apiHistoryForAnswerer,
-                // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
-                systemInstruction: 'You are ' + answerer.name + '. Your persona is: "' + answerer.prompt + '". You are having a conversation in Hebrew with ' + questioner.name + ' about "' + topic + '". Your response must be in Hebrew. Be true to your character and respond directly to the last question.'
+            const answererModel = ai.getGenerativeModel({
+                model: MODEL_NAME,
+                systemInstruction: You are ${answerer.name}. Your persona is: "${answerer.prompt}". You are having a conversation in Hebrew with ${questioner.name} about "${topic}". Your response must be in Hebrew. Be true to your character and respond directly to the last question.
             });
-            
-            const answerResponse = await chatSession.sendMessage(question);
-            const answer = answerResponse.response.text().trim();
+            const answererChat = answererModel.startChat({
+                history: updatedHistoryForAnswerer.map(msg => ({ role: msg.role === 'questioner' ? 'user' : 'model', parts: [{ text: msg.text }] }))
+            });
+            const answerResult = await answererChat.sendMessage("Provide your answer."); // The context is in the history
+            const answer = answerResult.response.text().trim();
             removeThinkingIndicator();
             addMessageToChat(answerer, answer, 'answerer');
 
         } catch (error) {
             console.error("Error during conversation round:", error);
             removeThinkingIndicator();
-            const errorMsg = 'אופס! קרתה שגיאה במהלך השיחה. אנא בדוק את חיבור האינטרנט או את תקינות המפתח.';
+            const errorMsg = 'אופס! קרתה שגיאה במהלך השיחה. אנא בדוק את חיבור האינטרנט או את תקינות המפתח. 🐞';
             addMessageToChat({ name: 'מערכת', emoji: '⚙️' }, errorMsg, 'answerer');
             break; 
         }
@@ -564,8 +522,7 @@ async function runConversation(rounds, newTopic = null) {
 }
 
 function updateProgress() {
-    // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
-    progressIndicator.textContent = 'סבב ' + currentRound + ' מתוך ' + totalRounds;
+    progressIndicator.textContent = סבב ${currentRound} מתוך ${totalRounds} 🔄;
 }
 
 function setGeneratingState(generating) {
@@ -579,7 +536,7 @@ function setGeneratingState(generating) {
     elementsToDisable.forEach(el => { if(el) el.disabled = generating; });
     
     if(!isSharedChatView) {
-      startChatBtn.textContent = generating ? 'יוצר שיחה...' : 'התחל שיחה חדשה';
+      startChatBtn.textContent = generating ? 'יוצר שיחה... 🧠' : 'התחל שיחה חדשה ✨';
     }
 }
 
@@ -612,25 +569,22 @@ function clearConversation(hideSection = true) {
     currentRound = 0;
     totalRounds = 0;
     progressIndicator.textContent = '';
-    clearChatBtn.textContent = 'נקה שיחה';
+    clearChatBtn.textContent = 'נקה שיחה 🧹';
 }
 
 function exportConversation(format) {
     const chat = getSavedChats().find(c => c.id === currentChatId);
     if (!chat || chat.conversation.length === 0) {
-        alert('אין שיחה לשמור.');
+        alert('אין שיחה לשמור. 💾');
         return;
     }
 
     const topic = (chat.topic || 'conversation').replace(/[\\/:"*?<>|]/g, '').replace(/ /g, '_');
-    // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
-    const filename = 'gemini_chat_' + topic;
+    const filename = gemini_chat_${topic};
     
     if (format === 'txt') {
-        // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
-        let textContent = 'נושא: ' + chat.topic + '\n\n';
-        // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
-        textContent += chat.conversation.map(msg => msg.character + ':\n' + msg.text + '\n').join('\n');
+        let textContent = נושא: ${chat.topic}\n\n;
+        textContent += chat.conversation.map(msg => ${msg.character}:\n${msg.text}\n).join('\n');
         downloadFile(filename + '.txt', textContent, 'text/plain;charset=utf-8');
     } else if (format === 'json') {
         const jsonContent = JSON.stringify(chat, null, 2);
@@ -644,7 +598,7 @@ function exportConversation(format) {
             downloadFile(filename + '.png', canvas.toDataURL('image/png'), 'image/png', true);
         }).catch(err => {
             console.error("Error generating image:", err);
-            alert("לא ניתן היה ליצור את התמונה.");
+            alert("לא ניתן היה ליצור את התמונה. 🖼️");
         });
     }
 }
