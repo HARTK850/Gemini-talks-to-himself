@@ -120,7 +120,6 @@ function renderHistoryList() {
     historyList.innerHTML = '';
     if(chats.length === 0){
         historyList.innerHTML = '<p class="empty-history-message">אין שיחות שמורות עדיין.</p>';
-
         return;
     }
 
@@ -132,8 +131,9 @@ function renderHistoryList() {
         item.querySelector('.history-item-title').textContent = chat.topic || 'שיחה ללא נושא';
         item.querySelector('.history-item-date').textContent = new Date(chat.lastUpdated).toLocaleString('he-IL');
         const lastMessage = chat.conversation[chat.conversation.length - 1];
-item.querySelector('.history-item-preview').textContent = lastMessage ? ${lastMessage.character}: ${lastMessage.text.substring(0, 50)} : 'שיחה ריקה';
-    
+        // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
+        item.querySelector('.history-item-preview').textContent = lastMessage ? lastMessage.character + ': ' + lastMessage.text.substring(0, 50) + '...' : 'שיחה ריקה';
+        
         // Event Listeners
         item.querySelector('.history-item-main').addEventListener('click', () => loadChat(chat.id));
         
@@ -236,7 +236,8 @@ function shareChat(id) {
         };
         const jsonString = JSON.stringify(dataToShare);
         const encoded = btoa(encodeURIComponent(jsonString));
-        const url = ${window.location.origin}${window.location.pathname}?chat=${encoded};
+        // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
+        const url = window.location.origin + window.location.pathname + '?chat=' + encoded;
         
         navigator.clipboard.writeText(url).then(() => {
             alert('קישור לשיחה הועתק!');
@@ -265,7 +266,8 @@ function loadSharedChat() {
 
         const setCharacter = (role, details) => {
             const select = role === 'questioner' ? questionerSelect : answererSelect;
-            select.innerHTML = <option>${details.emoji} ${details.name}</option>;
+            // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
+            select.innerHTML = '<option>' + details.emoji + ' ' + details.name + '</option>';
             select.disabled = true;
         };
         setCharacter('questioner', data.q);
@@ -305,7 +307,8 @@ function populateCharacterSelects() {
         for (const id in characters) {
             const option = document.createElement('option');
             option.value = id;
-            option.textContent = ${characters[id].emoji} ${characters[id].name};
+            // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
+            option.textContent = characters[id].emoji + ' ' + characters[id].name;
             select.appendChild(option);
         }
     });
@@ -416,7 +419,8 @@ function getCharacterDetails(role) {
     if (id === 'custom') {
         const nameInput = role === 'questioner' ? customQuestionerName : customAnswererName;
         const promptInput = role === 'questioner' ? customQuestionerSystemPrompt : customAnswererSystemPrompt;
-        const name = nameInput.value.trim() || דמות מותאמת אישית ${role === 'questioner' ? '1' : '2'};
+        // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
+        const name = nameInput.value.trim() || 'דמות מותאמת אישית ' + (role === 'questioner' ? '1' : '2');
         return {
             id: 'custom',
             name: name,
@@ -439,8 +443,9 @@ function startNewConversation() {
     clearConversation(false); // Don't hide the chat section yet
     currentChatId = Date.now(); // Create a new ID for the new chat
     chatSection.classList.remove('hidden');
-    chatTitle.textContent = שיחה על: ${topic};
-    runConversation(5, topic); // <<< שינוי כאן: העברת הנושא ישירות לפונקציה
+    // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
+    chatTitle.textContent = 'שיחה על: ' + topic;
+    runConversation(5, topic); // העברת הנושא ישירות לפונקציה
 }
 
 function addMessageToChat(character, text, role, shouldAddToHistory = true) {
@@ -450,7 +455,8 @@ function addMessageToChat(character, text, role, shouldAddToHistory = true) {
     const avatar = messageElement.querySelector('.avatar');
     avatar.textContent = character.emoji;
     
-    const authorName = ${character.name};
+    // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
+    const authorName = character.name; // אין צורך בשרשור אם זה רק שם
     messageElement.querySelector('.message-author').textContent = authorName;
     
     const textElement = messageElement.querySelector('.message-text');
@@ -471,7 +477,8 @@ function addMessageToChat(character, text, role, shouldAddToHistory = true) {
 }
 
 function showThinkingIndicator(character, role) {
-    const thinkingHTML = <div class="thinking-indicator"><div class="dot-flashing"></div></div>;
+    // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
+    const thinkingHTML = '<div class="thinking-indicator"><div class="dot-flashing"></div></div>';
     addMessageToChat(character, thinkingHTML, role, false);
 }
 
@@ -482,11 +489,9 @@ function removeThinkingIndicator() {
     }
 }
 
-// <<< שינוי כאן: הפונקציה מקבלת פרמטר אופציונלי newTopic
 async function runConversation(rounds, newTopic = null) {
     if (isGenerating || isSharedChatView) return;
     
-    // <<< שינוי כאן: שימוש ב-newTopic אם קיים, אחרת קריאה מהשדה
     const topic = newTopic || topicInput.value.trim();
     if (!topic) {
         alert('אנא ודא שהגדרת נושא לשיחה.');
@@ -504,16 +509,19 @@ async function runConversation(rounds, newTopic = null) {
         currentRound++;
         updateProgress();
 
+        // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
         const currentHistoryForPrompt = (getSavedChats().find(c => c.id === currentChatId)?.conversation || [])
-                                      .map(msg => ${msg.character}: ${msg.text}).join('\n');
+                                      .map(msg => msg.character + ': ' + msg.text).join('\n');
         
         try {
             showThinkingIndicator(questioner, 'questioner');
             let questionerPrompt;
             if (currentHistoryForPrompt.length === 0) {
-                questionerPrompt = You are ${questioner.name}. Your persona is: "${questioner.prompt}". You are about to have a conversation in Hebrew with ${answerer.name}, whose persona is: "${answerer.prompt}". The topic is "${topic}". Please generate a creative, short opening question (5-20 words) in Hebrew to start the conversation.;
+                // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
+                questionerPrompt = 'You are ' + questioner.name + '. Your persona is: "' + questioner.prompt + '". You are about to have a conversation in Hebrew with ' + answerer.name + ', whose persona is: "' + answerer.prompt + '". The topic is "' + topic + '". Please generate a creative, short opening question (5-20 words) in Hebrew to start the conversation.';
             } else {
-                questionerPrompt = You are ${questioner.name}. Your persona is: "${questioner.prompt}". You are in a conversation in Hebrew with ${answerer.name} about "${topic}". Here is the conversation so far:\n\n${currentHistoryForPrompt}\n\nBased on the last response from ${answerer.name}, ask a natural, relevant follow-up question (5-20 words) in Hebrew to continue the dialogue. Your question should be short and to the point.;
+                // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
+                questionerPrompt = 'You are ' + questioner.name + '. Your persona is: "' + questioner.prompt + '". You are in a conversation in Hebrew with ' + answerer.name + ' about "' + topic + '". Here is the conversation so far:\n\n' + currentHistoryForPrompt + '\n\nBased on the last response from ' + answerer.name + ', ask a natural, relevant follow-up question (5-20 words) in Hebrew to continue the dialogue. Your question should be short and to the point.';
             }
 
             const model = ai.getGenerativeModel({ model: MODEL_NAME });
@@ -533,7 +541,8 @@ async function runConversation(rounds, newTopic = null) {
             
             const chatSession = model.startChat({ 
                 history: apiHistoryForAnswerer,
-                systemInstruction: You are ${answerer.name}. Your persona is: "${answerer.prompt}". You are having a conversation in Hebrew with ${questioner.name} about "${topic}". Your response must be in Hebrew. Be true to your character and respond directly to the last question.
+                // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
+                systemInstruction: 'You are ' + answerer.name + '. Your persona is: "' + answerer.prompt + '". You are having a conversation in Hebrew with ' + questioner.name + ' about "' + topic + '". Your response must be in Hebrew. Be true to your character and respond directly to the last question.'
             });
             
             const answerResponse = await chatSession.sendMessage(question);
@@ -555,7 +564,8 @@ async function runConversation(rounds, newTopic = null) {
 }
 
 function updateProgress() {
-    progressIndicator.textContent = סבב ${currentRound} מתוך ${totalRounds};
+    // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
+    progressIndicator.textContent = 'סבב ' + currentRound + ' מתוך ' + totalRounds;
 }
 
 function setGeneratingState(generating) {
@@ -613,11 +623,14 @@ function exportConversation(format) {
     }
 
     const topic = (chat.topic || 'conversation').replace(/[\\/:"*?<>|]/g, '').replace(/ /g, '_');
-    const filename = gemini_chat_${topic};
+    // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
+    const filename = 'gemini_chat_' + topic;
     
     if (format === 'txt') {
-        let textContent = נושא: ${chat.topic}\n\n;
-        textContent += chat.conversation.map(msg => ${msg.character}:\n${msg.text}\n).join('\n');
+        // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
+        let textContent = 'נושא: ' + chat.topic + '\n\n';
+        // תיקון: שימוש בשרשור מחרוזות במקום Template Literal
+        textContent += chat.conversation.map(msg => msg.character + ':\n' + msg.text + '\n').join('\n');
         downloadFile(filename + '.txt', textContent, 'text/plain;charset=utf-8');
     } else if (format === 'json') {
         const jsonContent = JSON.stringify(chat, null, 2);
