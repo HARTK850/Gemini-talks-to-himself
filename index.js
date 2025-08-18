@@ -54,7 +54,7 @@ let totalRounds = 0;
 let isGenerating = false;
 let isSharedChatView = false;
 
-const MODEL_NAME = 'gemini-2.5-flash';
+const MODEL_NAME = 'gemini-1.5-flash';
 
 // --- Character Definitions ---
 const characters = {
@@ -119,7 +119,7 @@ function renderHistoryList() {
     chats.sort((a, b) => (b.favorite - a.favorite) || (b.lastUpdated - a.lastUpdated));
     historyList.innerHTML = '';
     if(chats.length === 0){
-        historyList.innerHTML = `<p class="empty-history-message">אין שיחות שמורות עדיין.</p>`;
+        historyList.innerHTML = <p class="empty-history-message">אין שיחות שמורות עדיין.</p>;
         return;
     }
 
@@ -131,7 +131,7 @@ function renderHistoryList() {
         item.querySelector('.history-item-title').textContent = chat.topic || 'שיחה ללא נושא';
         item.querySelector('.history-item-date').textContent = new Date(chat.lastUpdated).toLocaleString('he-IL');
         const lastMessage = chat.conversation[chat.conversation.length - 1];
-        item.querySelector('.history-item-preview').textContent = lastMessage ? `${lastMessage.character}: ${lastMessage.text.substring(0, 50)}...` : 'שיחה ריקה';
+        item.querySelector('.history-item-preview').textContent = lastMessage ? ${lastMessage.character}: ${lastMessage.text.substring(0, 50)}... : 'שיחה ריקה';
         
         // Event Listeners
         item.querySelector('.history-item-main').addEventListener('click', () => loadChat(chat.id));
@@ -235,7 +235,7 @@ function shareChat(id) {
         };
         const jsonString = JSON.stringify(dataToShare);
         const encoded = btoa(encodeURIComponent(jsonString));
-        const url = `${window.location.origin}${window.location.pathname}?chat=${encoded}`;
+        const url = ${window.location.origin}${window.location.pathname}?chat=${encoded};
         
         navigator.clipboard.writeText(url).then(() => {
             alert('קישור לשיחה הועתק!');
@@ -264,7 +264,7 @@ function loadSharedChat() {
 
         const setCharacter = (role, details) => {
             const select = role === 'questioner' ? questionerSelect : answererSelect;
-            select.innerHTML = `<option>${details.emoji} ${details.name}</option>`;
+            select.innerHTML = <option>${details.emoji} ${details.name}</option>;
             select.disabled = true;
         };
         setCharacter('questioner', data.q);
@@ -304,7 +304,7 @@ function populateCharacterSelects() {
         for (const id in characters) {
             const option = document.createElement('option');
             option.value = id;
-            option.textContent = `${characters[id].emoji} ${characters[id].name}`;
+            option.textContent = ${characters[id].emoji} ${characters[id].name};
             select.appendChild(option);
         }
     });
@@ -381,11 +381,13 @@ async function validateAndSetApiKey(key, isInitialLoad = false) {
     validateApiKeyBtn.disabled = true;
 
     try {
-        const testAi = new GoogleGenAI({ apiKey: key });
-        await testAi.models.generateContent({ model: MODEL_NAME, contents: [{ parts: [{ text: 'test' }] }]});
+        // Corrected initialization for the genai package
+        const testAi = new GoogleGenAI(key);
+        const model = testAi.getGenerativeModel({ model: MODEL_NAME });
+        await model.generateContent("test");
         
         localStorage.setItem('gemini_api_key', key);
-        ai = new GoogleGenAI({ apiKey: key });
+        ai = testAi; // Use the already initialized instance
         apiKeyStatus.textContent = 'המפתח תקין ואושר!';
         apiKeyStatus.className = 'status-message success';
         setTimeout(() => {
@@ -414,7 +416,7 @@ function getCharacterDetails(role) {
     if (id === 'custom') {
         const nameInput = role === 'questioner' ? customQuestionerName : customAnswererName;
         const promptInput = role === 'questioner' ? customQuestionerSystemPrompt : customAnswererSystemPrompt;
-        const name = nameInput.value.trim() || `דמות מותאמת אישית ${role === 'questioner' ? '1' : '2'}`;
+        const name = nameInput.value.trim() || דמות מותאמת אישית ${role === 'questioner' ? '1' : '2'};
         return {
             id: 'custom',
             name: name,
@@ -437,8 +439,8 @@ function startNewConversation() {
     clearConversation(false); // Don't hide the chat section yet
     currentChatId = Date.now(); // Create a new ID for the new chat
     chatSection.classList.remove('hidden');
-    chatTitle.textContent = `שיחה על: ${topic}`;
-    runConversation(5);
+    chatTitle.textContent = שיחה על: ${topic};
+    runConversation(5, topic); // <<< שינוי כאן: העברת הנושא ישירות לפונקציה
 }
 
 function addMessageToChat(character, text, role, shouldAddToHistory = true) {
@@ -448,7 +450,7 @@ function addMessageToChat(character, text, role, shouldAddToHistory = true) {
     const avatar = messageElement.querySelector('.avatar');
     avatar.textContent = character.emoji;
     
-    const authorName = `${character.name}`;
+    const authorName = ${character.name};
     messageElement.querySelector('.message-author').textContent = authorName;
     
     const textElement = messageElement.querySelector('.message-text');
@@ -469,7 +471,7 @@ function addMessageToChat(character, text, role, shouldAddToHistory = true) {
 }
 
 function showThinkingIndicator(character, role) {
-    const thinkingHTML = `<div class="thinking-indicator"><div class="dot-flashing"></div></div>`;
+    const thinkingHTML = <div class="thinking-indicator"><div class="dot-flashing"></div></div>;
     addMessageToChat(character, thinkingHTML, role, false);
 }
 
@@ -480,10 +482,12 @@ function removeThinkingIndicator() {
     }
 }
 
-async function runConversation(rounds) {
+// <<< שינוי כאן: הפונקציה מקבלת פרמטר אופציונלי newTopic
+async function runConversation(rounds, newTopic = null) {
     if (isGenerating || isSharedChatView) return;
     
-    const topic = topicInput.value.trim();
+    // <<< שינוי כאן: שימוש ב-newTopic אם קיים, אחרת קריאה מהשדה
+    const topic = newTopic || topicInput.value.trim();
     if (!topic) {
         alert('אנא ודא שהגדרת נושא לשיחה.');
         return;
@@ -501,38 +505,41 @@ async function runConversation(rounds) {
         updateProgress();
 
         const currentHistoryForPrompt = (getSavedChats().find(c => c.id === currentChatId)?.conversation || [])
-                                      .map(msg => `${msg.character}: ${msg.text}`).join('\n');
+                                      .map(msg => ${msg.character}: ${msg.text}).join('\n');
         
         try {
             showThinkingIndicator(questioner, 'questioner');
             let questionerPrompt;
             if (currentHistoryForPrompt.length === 0) {
-                questionerPrompt = `You are ${questioner.name}. Your persona is: "${questioner.prompt}". You are about to have a conversation in Hebrew with ${answerer.name}, whose persona is: "${answerer.prompt}". The topic is "${topic}". Please generate a creative, short opening question (5-20 words) in Hebrew to start the conversation.`;
+                questionerPrompt = You are ${questioner.name}. Your persona is: "${questioner.prompt}". You are about to have a conversation in Hebrew with ${answerer.name}, whose persona is: "${answerer.prompt}". The topic is "${topic}". Please generate a creative, short opening question (5-20 words) in Hebrew to start the conversation.;
             } else {
-                questionerPrompt = `You are ${questioner.name}. Your persona is: "${questioner.prompt}". You are in a conversation in Hebrew with ${answerer.name} about "${topic}". Here is the conversation so far:\n\n${currentHistoryForPrompt}\n\nBased on the last response from ${answerer.name}, ask a natural, relevant follow-up question (5-20 words) in Hebrew to continue the dialogue. Your question should be short and to the point.`;
+                questionerPrompt = You are ${questioner.name}. Your persona is: "${questioner.prompt}". You are in a conversation in Hebrew with ${answerer.name} about "${topic}". Here is the conversation so far:\n\n${currentHistoryForPrompt}\n\nBased on the last response from ${answerer.name}, ask a natural, relevant follow-up question (5-20 words) in Hebrew to continue the dialogue. Your question should be short and to the point.;
             }
 
-            let questionResponse = await ai.models.generateContent({ model: MODEL_NAME, contents: questionerPrompt });
-            const question = questionResponse.text.trim();
+            // Corrected way to call the model
+            const model = ai.getGenerativeModel({ model: MODEL_NAME });
+            let questionResponse = await model.generateContent(questionerPrompt);
+            const question = questionResponse.response.text().trim();
             removeThinkingIndicator();
             addMessageToChat(questioner, question, 'questioner');
 
             // --- Generate Answer ---
             const newHistoryForAnswerer = (getSavedChats().find(c => c.id === currentChatId)?.conversation || []);
             showThinkingIndicator(answerer, 'answerer');
-            const answererSystemInstruction = `You are ${answerer.name}. Your persona is: "${answerer.prompt}". You are having a conversation in Hebrew with ${questioner.name} about "${topic}". Your response must be in Hebrew. Be true to your character and respond directly to the last question.`;
+            const answererSystemInstruction = You are ${answerer.name}. Your persona is: "${answerer.prompt}". You are having a conversation in Hebrew with ${questioner.name} about "${topic}". Your response must be in Hebrew. Be true to your character and respond directly to the last question.;
             
             const apiHistoryForAnswerer = newHistoryForAnswerer.map(msg => ({
                 role: msg.role === 'questioner' ? 'user' : 'model',
                 parts: [{ text: msg.text }]
             }));
 
-            const answerResponse = await ai.models.generateContent({
-                model: MODEL_NAME,
-                contents: apiHistoryForAnswerer,
-                config: { systemInstruction: answererSystemInstruction }
-            });
-            const answer = answerResponse.text.trim();
+             const chatSession = model.startChat({
+                history: apiHistoryForAnswerer,
+                generationConfig: { systemInstruction: answererSystemInstruction }
+             });
+            
+            const answerResponse = await chatSession.sendMessage(question); // Send only the latest question
+            const answer = answerResponse.response.text().trim();
             removeThinkingIndicator();
             addMessageToChat(answerer, answer, 'answerer');
 
@@ -550,7 +557,7 @@ async function runConversation(rounds) {
 }
 
 function updateProgress() {
-    progressIndicator.textContent = `סבב ${currentRound} מתוך ${totalRounds}`;
+    progressIndicator.textContent = סבב ${currentRound} מתוך ${totalRounds};
 }
 
 function setGeneratingState(generating) {
@@ -608,11 +615,11 @@ function exportConversation(format) {
     }
 
     const topic = (chat.topic || 'conversation').replace(/[\\/:"*?<>|]/g, '').replace(/ /g, '_');
-    const filename = `gemini_chat_${topic}`;
+    const filename = gemini_chat_${topic};
     
     if (format === 'txt') {
-        let textContent = `נושא: ${chat.topic}\n\n`;
-        textContent += chat.conversation.map(msg => `${msg.character}:\n${msg.text}\n`).join('\n');
+        let textContent = נושא: ${chat.topic}\n\n;
+        textContent += chat.conversation.map(msg => ${msg.character}:\n${msg.text}\n).join('\n');
         downloadFile(filename + '.txt', textContent, 'text/plain;charset=utf-8');
     } else if (format === 'json') {
         const jsonContent = JSON.stringify(chat, null, 2);
