@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai"; // <<< ייבוא הספרייה המעודכנת
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // --- DOM Elements ---
 const app = document.getElementById('app');
@@ -47,7 +47,7 @@ const clearChatBtn = document.getElementById('clear-chat-btn');
 
 
 // --- State ---
-let ai; // המשתנה ai יחזיק כעת מופע של GoogleGenerativeAI
+let ai;
 let currentChatId = null;
 let currentRound = 0;
 let totalRounds = 0;
@@ -130,7 +130,9 @@ function renderHistoryList() {
         item.querySelector('.history-item-title').textContent = chat.topic || 'שיחה ללא נושא';
         item.querySelector('.history-item-date').textContent = new Date(chat.lastUpdated).toLocaleString('he-IL');
         const lastMessage = chat.conversation[chat.conversation.length - 1];
-        item.querySelector('.history-item-preview').textContent = lastMessage ? ${lastMessage.character}: ${lastMessage.text.substring(0, 50)}... : 'שיחה ריקה';
+        
+        // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
+        item.querySelector('.history-item-preview').textContent = lastMessage ? lastMessage.character + ': ' + lastMessage.text.substring(0, 50) + '...' : 'שיחה ריקה';
         
         item.querySelector('.history-item-main').addEventListener('click', () => loadChat(chat.id));
         
@@ -224,7 +226,8 @@ function shareChat(id) {
         const dataToShare = { v: 1, topic: chat.topic, q: chat.questioner, a: chat.answerer, h: chat.conversation };
         const jsonString = JSON.stringify(dataToShare);
         const encoded = btoa(encodeURIComponent(jsonString));
-        const url = ${window.location.origin}${window.location.pathname}?chat=${encoded};
+        // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
+        const url = window.location.origin + window.location.pathname + '?chat=' + encoded;
         
         navigator.clipboard.writeText(url).then(() => {
             alert('קישור לשיחה הועתק! 🔗');
@@ -252,7 +255,8 @@ function loadSharedChat() {
 
         const setCharacter = (role, details) => {
             const select = role === 'questioner' ? questionerSelect : answererSelect;
-            select.innerHTML = <option>${details.emoji} ${details.name}</option>;
+            // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
+            select.innerHTML = '<option>' + details.emoji + ' ' + details.name + '</option>';
             select.disabled = true;
         };
         setCharacter('questioner', data.q);
@@ -291,7 +295,8 @@ function populateCharacterSelects() {
         for (const id in characters) {
             const option = document.createElement('option');
             option.value = id;
-            option.textContent = ${characters[id].emoji} ${characters[id].name};
+            // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
+            option.textContent = characters[id].emoji + ' ' + characters[id].name;
             select.appendChild(option);
         }
     });
@@ -367,11 +372,8 @@ async function validateAndSetApiKey(key, isInitialLoad = false) {
     validateApiKeyBtn.disabled = true;
 
     try {
-        // שימוש במחלקה המעודכנת GoogleGenerativeAI
         const testAi = new GoogleGenerativeAI(key);
         const model = testAi.getGenerativeModel({ model: MODEL_NAME });
-        
-        // קריאת בדיקה אמינה ל-API
         await model.generateContent("ping");
         
         localStorage.setItem('gemini_api_key', key);
@@ -404,7 +406,8 @@ function getCharacterDetails(role) {
     if (id === 'custom') {
         const nameInput = role === 'questioner' ? customQuestionerName : customAnswererName;
         const promptInput = role === 'questioner' ? customQuestionerSystemPrompt : customAnswererSystemPrompt;
-        const name = nameInput.value.trim() || דמות מותאמת אישית ${role === 'questioner' ? '1' : '2'};
+        // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
+        const name = nameInput.value.trim() || 'דמות מותאמת אישית ' + (role === 'questioner' ? '1' : '2');
         return { id: 'custom', name: name, prompt: promptInput.value.trim(), emoji: characters.custom.emoji };
     }
     return { ...characters[id], id, emoji };
@@ -422,7 +425,8 @@ function startNewConversation() {
     clearConversation(false);
     currentChatId = Date.now();
     chatSection.classList.remove('hidden');
-    chatTitle.textContent = שיחה על: ${topic};
+    // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
+    chatTitle.textContent = 'שיחה על: ' + topic;
     runConversation(5, topic);
 }
 
@@ -431,7 +435,7 @@ function addMessageToChat(character, text, role, shouldAddToHistory = true) {
     messageElement.classList.add(role);
     
     messageElement.querySelector('.avatar').textContent = character.emoji;
-    messageElement.querySelector('.message-author').textContent = ${character.name};
+    messageElement.querySelector('.message-author').textContent = character.name;
     messageElement.querySelector('.message-text').innerHTML = text;
 
     chatContainer.appendChild(messageElement);
@@ -445,7 +449,7 @@ function addMessageToChat(character, text, role, shouldAddToHistory = true) {
 }
 
 function showThinkingIndicator(character, role) {
-    const thinkingHTML = <div class="thinking-indicator"><div class="dot-flashing"></div></div>;
+    const thinkingHTML = '<div class="thinking-indicator"><div class="dot-flashing"></div></div>';
     addMessageToChat(character, thinkingHTML, role, false);
 }
 
@@ -483,7 +487,8 @@ async function runConversation(rounds, newTopic = null) {
             showThinkingIndicator(questioner, 'questioner');
             const questionerModel = ai.getGenerativeModel({ 
                 model: MODEL_NAME,
-                systemInstruction: You are ${questioner.name}. Your persona is: "${questioner.prompt}". You are in a conversation in Hebrew with ${answerer.name} about "${topic}". Your goal is to ask a natural, relevant follow-up question (5-20 words) in Hebrew to continue the dialogue. If this is the first turn, ask a creative opening question.
+                // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
+                systemInstruction: 'You are ' + questioner.name + '. Your persona is: "' + questioner.prompt + '". You are in a conversation in Hebrew with ' + answerer.name + ' about "' + topic + '". Your goal is to ask a natural, relevant follow-up question (5-20 words) in Hebrew to continue the dialogue. If this is the first turn, ask a creative opening question.'
             });
             const questionerChat = questionerModel.startChat({
                 history: currentHistory.map(msg => ({ role: msg.role === 'questioner' ? 'user' : 'model', parts: [{ text: msg.text }] }))
@@ -498,12 +503,13 @@ async function runConversation(rounds, newTopic = null) {
             showThinkingIndicator(answerer, 'answerer');
             const answererModel = ai.getGenerativeModel({
                 model: MODEL_NAME,
-                systemInstruction: You are ${answerer.name}. Your persona is: "${answerer.prompt}". You are having a conversation in Hebrew with ${questioner.name} about "${topic}". Your response must be in Hebrew. Be true to your character and respond directly to the last question.
+                // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
+                systemInstruction: 'You are ' + answerer.name + '. Your persona is: "' + answerer.prompt + '". You are having a conversation in Hebrew with ' + questioner.name + ' about "' + topic + '". Your response must be in Hebrew. Be true to your character and respond directly to the last question.'
             });
             const answererChat = answererModel.startChat({
                 history: updatedHistoryForAnswerer.map(msg => ({ role: msg.role === 'questioner' ? 'user' : 'model', parts: [{ text: msg.text }] }))
             });
-            const answerResult = await answererChat.sendMessage("Provide your answer."); // The context is in the history
+            const answerResult = await answererChat.sendMessage("Provide your answer.");
             const answer = answerResult.response.text().trim();
             removeThinkingIndicator();
             addMessageToChat(answerer, answer, 'answerer');
@@ -522,7 +528,8 @@ async function runConversation(rounds, newTopic = null) {
 }
 
 function updateProgress() {
-    progressIndicator.textContent = סבב ${currentRound} מתוך ${totalRounds} 🔄;
+    // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
+    progressIndicator.textContent = 'סבב ' + currentRound + ' מתוך ' + totalRounds + ' 🔄';
 }
 
 function setGeneratingState(generating) {
@@ -580,11 +587,13 @@ function exportConversation(format) {
     }
 
     const topic = (chat.topic || 'conversation').replace(/[\\/:"*?<>|]/g, '').replace(/ /g, '_');
-    const filename = gemini_chat_${topic};
+    // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
+    const filename = 'gemini_chat_' + topic;
     
     if (format === 'txt') {
-        let textContent = נושא: ${chat.topic}\n\n;
-        textContent += chat.conversation.map(msg => ${msg.character}:\n${msg.text}\n).join('\n');
+        // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
+        let textContent = 'נושא: ' + chat.topic + '\n\n';
+        textContent += chat.conversation.map(msg => msg.character + ':\n' + msg.text + '\n').join('\n');
         downloadFile(filename + '.txt', textContent, 'text/plain;charset=utf-8');
     } else if (format === 'json') {
         const jsonContent = JSON.stringify(chat, null, 2);
