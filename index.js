@@ -8,6 +8,7 @@ const validateApiKeyBtn = document.getElementById('validate-api-key-btn');
 const apiKeyStatus = document.getElementById('api-key-status');
 const mainContent = document.getElementById('main-content');
 const editApiKeyBtn = document.getElementById('edit-api-key-btn');
+const newChatBtn = document.getElementById('new-chat-btn'); // <<< הוספת כפתור חדש
 
 // History Panel
 const historyPanel = document.getElementById('history-panel');
@@ -85,6 +86,21 @@ const characters = {
     'taxi_driver': { name: 'נהג מונית חוכמולוג', emoji: '🚕', prompt: 'אתה נהג מונית ותיק שיודע הכל על הכל. יש לך דעה נחרצת על פוליטיקה, ספורט ומצב המדינה. תתלונן על הפקקים ותיתן "עצות זהב" לחיים.' },
 };
 
+// --- View Management ---
+// <<< פונקציה חדשה לניהול הממשק
+function updateViewState(state) {
+    if (state === 'chat') {
+        setupSection.classList.add('hidden');
+        chatSection.classList.remove('hidden');
+        newChatBtn.classList.remove('hidden');
+    } else { // state === 'setup'
+        setupSection.classList.remove('hidden');
+        chatSection.classList.add('hidden');
+        newChatBtn.classList.add('hidden');
+    }
+}
+
+
 // --- History Management ---
 const getSavedChats = () => JSON.parse(localStorage.getItem('gemini_chats_history') || '[]');
 const saveChats = (chats) => localStorage.setItem('gemini_chats_history', JSON.stringify(chats));
@@ -130,9 +146,7 @@ function renderHistoryList() {
         item.querySelector('.history-item-title').textContent = chat.topic || 'שיחה ללא נושא';
         item.querySelector('.history-item-date').textContent = new Date(chat.lastUpdated).toLocaleString('he-IL');
         const lastMessage = chat.conversation[chat.conversation.length - 1];
-        
-        // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
-        item.querySelector('.history-item-preview').textContent = lastMessage ? lastMessage.character + ': ' + lastMessage.text.substring(0, 50) + '...' : 'שיחה ריקה';
+        item.querySelector('.history-item-preview').textContent = lastMessage ? ${lastMessage.character}: ${lastMessage.text.substring(0, 50)}... : 'שיחה ריקה';
         
         item.querySelector('.history-item-main').addEventListener('click', () => loadChat(chat.id));
         
@@ -188,9 +202,9 @@ function loadChat(id) {
     totalRounds = rounds;
     updateProgress();
     
-    chatSection.classList.remove('hidden');
+    updateViewState('chat'); // <<< שינוי: מעבר לתצוגת צ'אט
     continueChatBtn.classList.remove('hidden');
-    clearChatBtn.textContent = 'שיחה חדשה';
+    clearChatBtn.textContent = 'נקה שיחה';
     setGeneratingState(false);
     toggleHistoryPanel(false);
 }
@@ -203,6 +217,7 @@ function deleteChat(id) {
     
     if (currentChatId === id) {
         clearConversation(true);
+        updateViewState('setup'); // <<< שינוי: אם מוחקים את השיחה הנוכחית, חזור למסך ההגדרות
     }
     renderHistoryList();
 }
@@ -217,6 +232,7 @@ function toggleFavorite(id) {
     }
 }
 
+// <<< שינוי: פונקציית השיתוף עודכנה לשימוש בדחיסה
 function shareChat(id) {
     const chats = getSavedChats();
     const chat = chats.find(c => c.id === id);
@@ -225,12 +241,17 @@ function shareChat(id) {
     try {
         const dataToShare = { v: 1, topic: chat.topic, q: chat.questioner, a: chat.answerer, h: chat.conversation };
         const jsonString = JSON.stringify(dataToShare);
-        const encoded = btoa(encodeURIComponent(jsonString));
-        // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
-        const url = window.location.origin + window.location.pathname + '?chat=' + encoded;
+        
+        // שלב 1: דחיסת המידע עם pako
+        const compressed = pako.deflate(jsonString, { to: 'string' });
+        
+        // שלב 2: קידוד ל-Base64 כדי להפוך את הקישור בטוח ל-URL
+        const encoded = btoa(compressed);
+        
+        const url = ${window.location.origin}${window.location.pathname}?chat=${encoded};
         
         navigator.clipboard.writeText(url).then(() => {
-            alert('קישור לשיחה הועתק! 🔗');
+            alert('קישור דחוס הועתק! 🔗');
         }, () => {
             alert('לא ניתן היה להעתיק את הקישור. 🙁');
         });
@@ -240,13 +261,19 @@ function shareChat(id) {
     }
 }
 
+// <<< שינוי: פונקציית טעינת שיחה משותפת עודכנה לשימוש בפריסה
 function loadSharedChat() {
     const params = new URLSearchParams(window.location.search);
     const sharedData = params.get('chat');
     if (!sharedData) return false;
 
     try {
-        const decoded = decodeURIComponent(atob(sharedData));
+        // שלב 1: המרה מ-Base64 חזרה למחרוזת הדחוסה
+        const compressed = atob(sharedData);
+        
+        // שלב 2: פריסת המידע עם pako
+        const decoded = pako.inflate(compressed, { to: 'string' });
+        
         const data = JSON.parse(decoded);
 
         isSharedChatView = true;
@@ -255,8 +282,7 @@ function loadSharedChat() {
 
         const setCharacter = (role, details) => {
             const select = role === 'questioner' ? questionerSelect : answererSelect;
-            // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
-            select.innerHTML = '<option>' + details.emoji + ' ' + details.name + '</option>';
+            select.innerHTML = <option>${details.emoji} ${details.name}</option>;
             select.disabled = true;
         };
         setCharacter('questioner', data.q);
@@ -275,8 +301,7 @@ function loadSharedChat() {
         clearChatBtn.disabled = false;
         clearChatBtn.onclick = () => { window.location.href = window.location.origin + window.location.pathname; };
         
-        chatSection.classList.remove('hidden');
-        setupSection.classList.add('hidden');
+        updateViewState('chat'); // <<< שינוי: הצג את הצ'אט
         return true;
 
     } catch (e) {
@@ -287,6 +312,7 @@ function loadSharedChat() {
     }
 }
 
+
 // --- Core App Logic ---
 
 function populateCharacterSelects() {
@@ -295,8 +321,7 @@ function populateCharacterSelects() {
         for (const id in characters) {
             const option = document.createElement('option');
             option.value = id;
-            // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
-            option.textContent = characters[id].emoji + ' ' + characters[id].name;
+            option.textContent = ${characters[id].emoji} ${characters[id].name};
             select.appendChild(option);
         }
     });
@@ -317,7 +342,10 @@ function toggleHistoryPanel(show) {
 }
 
 function init() {
-    if(loadSharedChat()) return;
+    if(loadSharedChat()) {
+        mainContent.classList.remove('hidden');
+        return;
+    }
 
     populateCharacterSelects();
     renderHistoryList();
@@ -339,6 +367,12 @@ function init() {
         }
     });
     
+    // <<< שינוי: הוספת Event Listener לכפתור הפלוס
+    newChatBtn.addEventListener('click', () => {
+        clearConversation(false);
+        updateViewState('setup');
+    });
+
     editApiKeyBtn.addEventListener('click', openApiKeyModal);
     openHistoryBtn.addEventListener('click', () => toggleHistoryPanel(true));
     closeHistoryBtn.addEventListener('click', () => toggleHistoryPanel(false));
@@ -354,6 +388,8 @@ function init() {
     saveTxtBtn.addEventListener('click', (e) => { e.preventDefault(); exportConversation('txt'); });
     saveJsonBtn.addEventListener('click', (e) => { e.preventDefault(); exportConversation('json'); });
     savePngBtn.addEventListener('click', (e) => { e.preventDefault(); exportConversation('png'); });
+
+    updateViewState('setup'); // <<< שינוי: קובע את המצב ההתחלתי למסך ההגדרות
 }
 
 function openApiKeyModal() {
@@ -406,8 +442,7 @@ function getCharacterDetails(role) {
     if (id === 'custom') {
         const nameInput = role === 'questioner' ? customQuestionerName : customAnswererName;
         const promptInput = role === 'questioner' ? customQuestionerSystemPrompt : customAnswererSystemPrompt;
-        // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
-        const name = nameInput.value.trim() || 'דמות מותאמת אישית ' + (role === 'questioner' ? '1' : '2');
+        const name = nameInput.value.trim() || דמות מותאמת אישית ${role === 'questioner' ? '1' : '2'};
         return { id: 'custom', name: name, prompt: promptInput.value.trim(), emoji: characters.custom.emoji };
     }
     return { ...characters[id], id, emoji };
@@ -424,9 +459,8 @@ function startNewConversation() {
 
     clearConversation(false);
     currentChatId = Date.now();
-    chatSection.classList.remove('hidden');
-    // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
-    chatTitle.textContent = 'שיחה על: ' + topic;
+    chatTitle.textContent = שיחה על: ${topic};
+    updateViewState('chat'); // <<< שינוי: מעבר לתצוגת צ'אט
     runConversation(5, topic);
 }
 
@@ -435,7 +469,7 @@ function addMessageToChat(character, text, role, shouldAddToHistory = true) {
     messageElement.classList.add(role);
     
     messageElement.querySelector('.avatar').textContent = character.emoji;
-    messageElement.querySelector('.message-author').textContent = character.name;
+    messageElement.querySelector('.message-author').textContent = ${character.name};
     messageElement.querySelector('.message-text').innerHTML = text;
 
     chatContainer.appendChild(messageElement);
@@ -449,7 +483,7 @@ function addMessageToChat(character, text, role, shouldAddToHistory = true) {
 }
 
 function showThinkingIndicator(character, role) {
-    const thinkingHTML = '<div class="thinking-indicator"><div class="dot-flashing"></div></div>';
+    const thinkingHTML = <div class="thinking-indicator"><div class="dot-flashing"></div></div>;
     addMessageToChat(character, thinkingHTML, role, false);
 }
 
@@ -487,8 +521,7 @@ async function runConversation(rounds, newTopic = null) {
             showThinkingIndicator(questioner, 'questioner');
             const questionerModel = ai.getGenerativeModel({ 
                 model: MODEL_NAME,
-                // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
-                systemInstruction: 'You are ' + questioner.name + '. Your persona is: "' + questioner.prompt + '". You are in a conversation in Hebrew with ' + answerer.name + ' about "' + topic + '". Your goal is to ask a natural, relevant follow-up question (5-20 words) in Hebrew to continue the dialogue. If this is the first turn, ask a creative opening question.'
+                systemInstruction: You are ${questioner.name}. Your persona is: "${questioner.prompt}". You are in a conversation in Hebrew with ${answerer.name} about "${topic}". Your goal is to ask a natural, relevant follow-up question (5-20 words) in Hebrew to continue the dialogue. If this is the first turn, ask a creative opening question.
             });
             const questionerChat = questionerModel.startChat({
                 history: currentHistory.map(msg => ({ role: msg.role === 'questioner' ? 'user' : 'model', parts: [{ text: msg.text }] }))
@@ -503,8 +536,7 @@ async function runConversation(rounds, newTopic = null) {
             showThinkingIndicator(answerer, 'answerer');
             const answererModel = ai.getGenerativeModel({
                 model: MODEL_NAME,
-                // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
-                systemInstruction: 'You are ' + answerer.name + '. Your persona is: "' + answerer.prompt + '". You are having a conversation in Hebrew with ' + questioner.name + ' about "' + topic + '". Your response must be in Hebrew. Be true to your character and respond directly to the last question.'
+                systemInstruction: You are ${answerer.name}. Your persona is: "${answerer.prompt}". You are having a conversation in Hebrew with ${questioner.name} about "${topic}". Your response must be in Hebrew. Be true to your character and respond directly to the last question.
             });
             const answererChat = answererModel.startChat({
                 history: updatedHistoryForAnswerer.map(msg => ({ role: msg.role === 'questioner' ? 'user' : 'model', parts: [{ text: msg.text }] }))
@@ -528,8 +560,7 @@ async function runConversation(rounds, newTopic = null) {
 }
 
 function updateProgress() {
-    // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
-    progressIndicator.textContent = 'סבב ' + currentRound + ' מתוך ' + totalRounds + ' 🔄';
+    progressIndicator.textContent = סבב ${currentRound} מתוך ${totalRounds} 🔄;
 }
 
 function setGeneratingState(generating) {
@@ -538,7 +569,7 @@ function setGeneratingState(generating) {
         startChatBtn, continueChatBtn, swapCharactersBtn, clearChatBtn, editApiKeyBtn,
         openHistoryBtn, topicInput, questionerSelect, answererSelect,
         customQuestionerName, customQuestionerSystemPrompt,
-        customAnswererName, customAnswererSystemPrompt
+        customAnswererName, customAnswererSystemPrompt, newChatBtn
     ];
     elementsToDisable.forEach(el => { if(el) el.disabled = generating; });
     
@@ -568,9 +599,14 @@ function clearConversation(hideSection = true) {
     if (isGenerating) return;
     currentChatId = null;
     chatContainer.innerHTML = '';
-    topicInput.value = '';
+    
+    // <<< שינוי: לא מנקים את שדה הנושא כשחוזרים למסך ההגדרות
+    if(hideSection) {
+        topicInput.value = '';
+    }
+
     if (hideSection) {
-      chatSection.classList.add('hidden');
+      updateViewState('setup');
     }
     continueChatBtn.classList.add('hidden');
     currentRound = 0;
@@ -587,13 +623,11 @@ function exportConversation(format) {
     }
 
     const topic = (chat.topic || 'conversation').replace(/[\\/:"*?<>|]/g, '').replace(/ /g, '_');
-    // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
-    const filename = 'gemini_chat_' + topic;
+    const filename = gemini_chat_${topic};
     
     if (format === 'txt') {
-        // <<< תיקון: שימוש בשרשור מחרוזות רגיל עם +
-        let textContent = 'נושא: ' + chat.topic + '\n\n';
-        textContent += chat.conversation.map(msg => msg.character + ':\n' + msg.text + '\n').join('\n');
+        let textContent = נושא: ${chat.topic}\n\n;
+        textContent += chat.conversation.map(msg => ${msg.character}:\n${msg.text}\n).join('\n');
         downloadFile(filename + '.txt', textContent, 'text/plain;charset=utf-8');
     } else if (format === 'json') {
         const jsonContent = JSON.stringify(chat, null, 2);
