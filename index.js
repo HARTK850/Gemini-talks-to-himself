@@ -119,7 +119,8 @@ function renderHistoryList() {
     chats.sort((a, b) => (b.favorite - a.favorite) || (b.lastUpdated - a.lastUpdated));
     historyList.innerHTML = '';
     if(chats.length === 0){
-        historyList.innerHTML = p class="empty-history-message">אין שיחות שמורות עדיין.</p>;
+        historyList.innerHTML = '<p class="empty-history-message">אין שיחות שמורות עדיין.</p>';
+
         return;
     }
 
